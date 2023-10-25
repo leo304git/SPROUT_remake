@@ -8,6 +8,7 @@ class Grid {
     public:
         Grid(size_t xId, size_t yId) : _xId(xId), _yId(yId) {
             _occupied = false;
+            _netId = -1;
             // _congestion = 0;
             // _congestCur = 0;
             // _congestHis = 0;
@@ -19,9 +20,11 @@ class Grid {
         bool occupied() const { return _occupied; }
         Grid* vNeighbor(size_t nbrId) { return _vNeighbor[nbrId]; }
         size_t numNeighbors() const { return _vNeighbor.size(); }
+        int netId() const { return _netId; }
 
         void setOccupied(bool occupied) { _occupied = occupied; }
         void addNeighbor(Grid* grid) { _vNeighbor.push_back(grid); }
+        void setNetId(int netId) { _netId = netId; }
         // int congestion() const { return _congestion; }
         // int congestCur() const { return _congestCur; }
         // int congestHis() const { return _congestHis; }
@@ -52,6 +55,7 @@ class Grid {
         size_t _xId;
         size_t _yId;
         bool _occupied;
+        int _netId;
         vector<Grid*> _vNeighbor;
 };
 
@@ -63,7 +67,7 @@ enum GNodeStatus {
 
 class GNode {
     public:
-        GNode(int xId, int yId) : _xId(xId), _yId(yId) {
+        GNode(int xId, int yId, Grid* grid) : _xId(xId), _yId(yId), _grid(grid) {
             _status = GNodeStatus::Init;
             _parent = NULL;
             _cost = numeric_limits<double>::infinity();
@@ -82,6 +86,7 @@ class GNode {
         double curDist() const { return _curDist; }
         double estDist() const { return _estDist; }
         double congest() const { return _congest; }
+        Grid*  grid()   { return _grid; }
 
         // set function
         void setStatus(GNodeStatus status) { _status = status; }
@@ -100,6 +105,7 @@ class GNode {
         double _curDist;    // the current distance cost (from the source)
         double _estDist;    // the estimated distance cost (to the target)
         double _congest;    // the (accumulated) congestion cost
+        Grid* _grid;
 };
 
 #endif

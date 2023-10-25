@@ -1,24 +1,97 @@
-// #include "AStarRouter.h"
+#include "AStarRouter.h"
+// #include "../base/Include.h"
+// using namespace std;
+
+bool AStarRouter::BFS() {
+    queue<GNode*> Queue;
+    _sNode->setParent(_sNode);
+    Queue.push(_sNode);
+    _sNode->setStatus(GNodeStatus::InQueue);
+
+    auto step = [&](Grid* orgGrid, size_t nbrId) -> bool {
+        GNode* orgNode;
+        if (orgGrid == _sGrid) {
+            orgNode = _sNode;
+        } else {
+            assert(orgNode != _tNode);
+            orgNode = _vGNode[orgGrid->xId()][orgGrid->yId()];
+        }
+        Grid* nbrGrid = orgGrid->vNeighbor(nbrId);
+        double newCost;
+        if (nbrGrid == _tGrid) {
+            _tNode->setParent(orgNode);
+            backTrace();
+            return true;
+        } else {
+            // assert(nbrGrid != _sGrid);
+            GNode* nbrNode = _vGNode[nbrGrid->xId()][nbrGrid->yId()];
+            if (nbrNode->status() != GNodeStatus::InPath) {
+                newCost = orgNode->cost() + 1;
+                if (nbrNode->status() == GNodeStatus::Init) {
+                    // cerr << stepNode << ": Init" << endl;
+                    nbrNode->setCost(newCost);
+                    nbrNode->setParent(orgNode);
+                    nbrNode->setStatus(GNodeStatus::InQueue);
+                    Queue.push(nbrNode);
+                } else {
+                    assert(nbrNode->status() == GNodeStatus::InQueue);
+                    if (nbrNode->cost() > newCost) {
+                        // cerr << stepNode << ": InQueue" << endl;
+                        nbrNode->setCost(newCost);
+                        nbrNode->setParent(orgNode);
+                        Queue.push(nbrNode);
+                    }
+                }
+            }
+            return false;
+        }
+        return false;
+    };
+
+    while (!Queue.empty()) {
+        GNode* node = Queue.front();
+        Queue.pop();
+        node->setStatus(GNodeStatus::InPath);
+        Grid* grid = node->grid();
+        for (size_t nbrId = 0; nbrId < grid->numNeighbors(); ++ nbrId) {
+            if (!grid->vNeighbor(nbrId)->occupied()) {
+                if (step(grid, nbrId)) return true;
+            }
+        }
+    }
+    return false;
+}
+
+void AStarRouter::backTrace() {
+    GNode* node = _tNode;
+    while(node != _sNode) {
+        _path.push_back(node->grid());
+        node = node->parent();
+    }
+    _path.push_back(node->grid());
+}
 
 // bool AStarRouter::route() {
 //     // define the priority queue
-//     auto cmp = [](GNode* a, GNode* b) { return a->cost() < b->cost(); };
-//     multiset<GNode*, decltype(cmp) > Q(cmp);
+//     // auto cmp = [](GNode* a, GNode* b) { return a->cost() < b->cost(); };
+//     // multiset<GNode*, decltype(cmp) > Q(cmp);
+//     queue<GNode*> Queue;
 
 //     // initialize the source node
 //     GNode* sNode = _vGNode[_sPos.first][_sPos.second];
 //     sNode->setParent(sNode);
-//     sNode->setCost(0.0);
-//     sNode->setCurDist(0.0);
-//     sNode->setEstDist(0.0);
-//     sNode->setCongest(0.0);
-//     Q.insert(sNode);
+//     // sNode->setCost(0.0);
+//     // sNode->setCurDist(0.0);
+//     // sNode->setEstDist(0.0);
+//     // sNode->setCongest(0.0);
+//     // Q.insert(sNode);
+//     Queue.push(sNode);
 //     sNode->setStatus(GNodeStatus::InQueue);
 
 //     // define lambda functions
 //     auto step = [&](GNode* orgNode, int xId, int yId, Direction dir) -> bool {
 //         GNode* stepNode = _vGNode[xId][yId];
-//         double newCurDist, newEstDist, newLineDist, newCongest, newCost;
+//         // double newCurDist, newEstDist, newLineDist, newCongest, newCost;
 //         if (xId == _tPos.first && yId == _tPos.second) {
 //         // if ((dir == Direction::Up && xId == _tPos.first && yId + floor(ceil(_lbWidth/_gridWidth)/2.0) == _tPos.second) ||
 //         //     (dir == Direction::Down && xId == _tPos.first && yId - floor(ceil(_lbWidth/_gridWidth)/2.0) == _tPos.second) ||

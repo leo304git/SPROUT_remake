@@ -35,8 +35,10 @@ void DetailedMgr::initGridMap() {
                     if (occupy(xId, yId, _db.vNet(netId)->sourceViaCstr()->bBox())) {
                         if (fullyOccupy(xId, yId, _db.vNet(netId)->sourceViaCstr()->bBox())) {  // inner grids
                             grid->setOccupied(true);
+                            grid->setNetId(netId);
                         } else {    // outer rim grids
                             grid->setOccupied(false);
+                            grid->setNetId(netId);
                             grid->addNeighbor(_vSGrid[netId][layId]);
                             _vSGrid[netId][layId]->addNeighbor(grid);
                         }
@@ -46,8 +48,10 @@ void DetailedMgr::initGridMap() {
                         if (occupy(xId, yId, _db.vNet(netId)->vTargetViaCstr(tPortId)->bBox())) {
                             if (fullyOccupy(xId, yId, _db.vNet(netId)->vTargetViaCstr(tPortId)->bBox())) {  // inner grids
                                 grid->setOccupied(true);
+                                grid->setNetId(netId);
                             } else {    // outer rim grids
                                 grid->setOccupied(false);
+                                grid->setNetId(netId);
                                 grid->addNeighbor(_vTGrid[netId][layId][tPortId]);
                                 _vTGrid[netId][layId][tPortId]->addNeighbor(grid);
                             }
@@ -91,6 +95,21 @@ void DetailedMgr::initGridMap() {
         }
     }
 
+    // set occupy of the outer rims
+    for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
+        for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
+            Grid* grid = _vSGrid[netId][layId];
+            for (size_t nbrId = 0; nbrId < grid->numNeighbors(); ++ nbrId) {
+                grid->vNeighbor(nbrId)->setOccupied(true);
+            }
+            for (size_t tPortId = 0; tPortId < _db.vNet(netId)->numTPorts(); ++ tPortId) {
+                Grid* tGrid = _vTGrid[netId][layId][tPortId];
+                for (size_t nbrId = 0; nbrId < tGrid->numNeighbors(); ++ nbrId) {
+                    tGrid->vNeighbor(nbrId)->setOccupied(true);
+                }
+            }
+        }
+    }
     // auto occupy = [&] (size_t layId, size_t xId, size_t yId, size_t netId) -> bool {
     //     for (size_t segId = 0; segId < _db.vNet(netId)->numSegments(layId); ++ segId) {
     //         Trace* trace = _db.vNet(netId)->vSegment(layId, segId)->trace();
@@ -284,26 +303,28 @@ void DetailedMgr::plotGraph() {
 }
 
 void DetailedMgr::plotGridMap() {
-    // for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
-    //     for (size_t xId = 0; xId < _numXs; ++ xId) {
-    //         for (size_t yId = 0; yId < _numYs; ++ yId) {
-    //             Grid* grid = _vGrid[layId][xId][yId];
-    //             vector< pair<double, double> > vVtx;
-    //             vVtx.push_back(make_pair(xId*_gridWidth, yId*_gridWidth));
-    //             vVtx.push_back(make_pair((xId+1)*_gridWidth, yId*_gridWidth));
-    //             vVtx.push_back(make_pair((xId+1)*_gridWidth, (yId+1)*_gridWidth));
-    //             vVtx.push_back(make_pair(xId*_gridWidth, (yId+1)*_gridWidth));
-    //             Polygon* p = new Polygon(vVtx, _plot);
-    //             if (grid->congestCur() == 0) {
-    //                 p->plot(SVGPlotColor::white, layId);
-    //             } else {
-    //                 for (size_t netId = 0; netId < grid->numNets(); ++ netId) {
-    //                     p->plot(grid->vNetId(netId), layId);
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
+    for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
+        for (size_t xId = 0; xId < _numXs; ++ xId) {
+            for (size_t yId = 0; yId < _numYs; ++ yId) {
+                Grid* grid = _vGrid[layId][xId][yId];
+                vector< pair<double, double> > vVtx;
+                vVtx.push_back(make_pair(xId*_gridWidth, yId*_gridWidth));
+                vVtx.push_back(make_pair((xId+1)*_gridWidth, yId*_gridWidth));
+                vVtx.push_back(make_pair((xId+1)*_gridWidth, (yId+1)*_gridWidth));
+                vVtx.push_back(make_pair(xId*_gridWidth, (yId+1)*_gridWidth));
+                Polygon* p = new Polygon(vVtx, _plot);
+                if (grid->netId() == -1) {
+                    if (grid->occupied()) {
+                        p->plot(SVGPlotColor::gray, layId);
+                    } else {
+                        p->plot(SVGPlotColor::white, layId);
+                    }
+                } else {
+                    p->plot(grid->netId(), layId);
+                }
+            }
+        }
+    }
     // int area = 0;
     // int overlapArea = 0;
     // for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
@@ -321,53 +342,109 @@ void DetailedMgr::plotGridMap() {
 }
 
 void DetailedMgr::naiveAStar() {
-    // // cerr << "naiveAStar..." << endl;
+    // cerr << "naiveAStar..." << endl;
+    for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
+        // cerr << "layId = " << layId;
+        for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
+            // cerr << " netId = " << netId << endl;
+    // size_t layId = 0;
+    // size_t netId = 0;
+            Net* net = _db.vNet(netId);
+            // clearNet(layId, netId);
+            Grid* grid = _vSGrid[netId][layId];
+
+            // unoccupied the outer rim grids
+            for (size_t nbrId = 0; nbrId < grid->numNeighbors(); ++ nbrId) {
+                grid->vNeighbor(nbrId)->setOccupied(false);
+            }
+            for (size_t tPortId = 0; tPortId < _db.vNet(netId)->numTPorts(); ++ tPortId) {
+                Grid* tGrid = _vTGrid[netId][layId][tPortId];
+                for (size_t nbrId = 0; nbrId < tGrid->numNeighbors(); ++ nbrId) {
+                    tGrid->vNeighbor(nbrId)->setOccupied(false);
+                }
+            }
+            for (size_t tPortId = 0; tPortId < net->numTPorts(); ++ tPortId) {
+                AStarRouter sRouter(_vGrid[layId], _vSGrid[netId][layId], _vTGrid[netId][layId][tPortId], _gridWidth);
+                if (sRouter.BFS()) {
+                    for (size_t pGridId = 0; pGridId < sRouter.numPath(); ++ pGridId) {
+                        Grid* grid = sRouter.path(pGridId);
+                        grid->setNetId(netId);
+                        // grid->setOccupied(true);
+                        _vNetGrid[netId][layId].push_back(grid);
+                    }
+                } else {
+                    cerr << "BFS fail: lay" << layId << " net" << netId << " s->t" << tPortId << endl;
+                }
+                
+                for (size_t tPortId1 = tPortId+1; tPortId1 < net->numTPorts(); ++ tPortId1) {
+                    AStarRouter tRouter(_vGrid[layId], _vTGrid[netId][layId][tPortId], _vTGrid[netId][layId][tPortId1], _gridWidth);
+                    if (tRouter.BFS()) {
+                        for (size_t pGridId = 0; pGridId < tRouter.numPath(); ++ pGridId) {
+                            Grid* grid = tRouter.path(pGridId);
+                            grid->setNetId(netId);
+                            // grid->setOccupied(true);
+                            _vNetGrid[netId][layId].push_back(grid);
+                        }
+                    } else {
+                        cerr << "BFS fail: lay" << layId << " net" << netId << " t" << tPortId << "->t" << tPortId1 << endl;
+                    }
+                    
+                }
+            }
+
+            // occupied the net grids
+            for (size_t netGridId = 0; netGridId < _vNetGrid[netId][layId].size(); ++ netGridId) {
+                _vNetGrid[netId][layId][netGridId]->setOccupied(true);
+            }
+            // occupied the outer rim grids
+            for (size_t nbrId = 0; nbrId < grid->numNeighbors(); ++ nbrId) {
+                grid->vNeighbor(nbrId)->setOccupied(true);
+            }
+            for (size_t tPortId = 0; tPortId < _db.vNet(netId)->numTPorts(); ++ tPortId) {
+                Grid* tGrid = _vTGrid[netId][layId][tPortId];
+                for (size_t nbrId = 0; nbrId < tGrid->numNeighbors(); ++ nbrId) {
+                    tGrid->vNeighbor(nbrId)->setOccupied(true);
+                }
+            }
+            
+            // for (size_t segId = 0; segId < net->numSegments(layId); ++ segId) {
+            //     Segment* segment = net->vSegment(layId, segId);
+            //     int sXId = floor(segment->sX() / _gridWidth);
+            //     int sYId = floor(segment->sY() / _gridWidth);
+            //     int tXId = floor(segment->tX() / _gridWidth);
+            //     int tYId = floor(segment->tY() / _gridWidth);
+            //     AStarRouter router(_vGrid[layId], make_pair(sXId, sYId), make_pair(tXId, tYId), _gridWidth, segment->length(), segment->width(), 0.9, _db.numNets() * 10.0, 0.2);
+            //     router.route();
+            //     segment->setWidth(router.exactWidth() * _gridWidth);
+            //     segment->setLength(router.exactLength() * _gridWidth);
+            //     for (size_t pGridId = 0; pGridId < router.numPGrids(); ++ pGridId) {
+            //         Grid* grid = router.vPGrid(pGridId);
+            //         if (!grid->hasNet(netId)) {
+            //             _vNetGrid[netId][layId].push_back(grid);
+            //             grid->addNet(netId);
+            //         }
+            //     }
+            //     // _vNetGrid[netId][layId].insert(_vNetGrid[netId][layId].end(), router.path().begin(), router.path().end());
+            // }
+            // for (size_t gridId = 0; gridId < _vNetGrid[netId][layId].size(); ++ gridId) {
+            //     _vNetGrid[netId][layId][gridId]->incCongestCur();
+            // }
+        }
+    }
+    // int area = 0;
+    // int overlapArea = 0;
     // for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
-    //     // cerr << "layId = " << layId;
-    //     for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
-    //         // cerr << " netId = " << netId << endl;
-    // // size_t layId = 0;
-    // // size_t netId = 0;
-    //         Net* net = _db.vNet(netId);
-    //         clearNet(layId, netId);
-    //         for (size_t segId = 0; segId < net->numSegments(layId); ++ segId) {
-    //             Segment* segment = net->vSegment(layId, segId);
-    //             int sXId = floor(segment->sX() / _gridWidth);
-    //             int sYId = floor(segment->sY() / _gridWidth);
-    //             int tXId = floor(segment->tX() / _gridWidth);
-    //             int tYId = floor(segment->tY() / _gridWidth);
-    //             AStarRouter router(_vGrid[layId], make_pair(sXId, sYId), make_pair(tXId, tYId), _gridWidth, segment->length(), segment->width(), 0.9, _db.numNets() * 10.0, 0.2);
-    //             router.route();
-    //             segment->setWidth(router.exactWidth() * _gridWidth);
-    //             segment->setLength(router.exactLength() * _gridWidth);
-    //             for (size_t pGridId = 0; pGridId < router.numPGrids(); ++ pGridId) {
-    //                 Grid* grid = router.vPGrid(pGridId);
-    //                 if (!grid->hasNet(netId)) {
-    //                     _vNetGrid[netId][layId].push_back(grid);
-    //                     grid->addNet(netId);
-    //                 }
-    //             }
-    //             // _vNetGrid[netId][layId].insert(_vNetGrid[netId][layId].end(), router.path().begin(), router.path().end());
-    //         }
-    //         for (size_t gridId = 0; gridId < _vNetGrid[netId][layId].size(); ++ gridId) {
-    //             _vNetGrid[netId][layId][gridId]->incCongestCur();
+    //     for (size_t xId = 0; xId < _numXs; ++ xId) {
+    //         for (size_t yId = 0; yId < _numYs; ++ yId) {
+    //             Grid* grid = _vGrid[layId][xId][yId];
+    //             if (grid->congestCur() >= 1) area++;
+    //             overlapArea += grid->congestCur();
     //         }
     //     }
     // }
-    // // int area = 0;
-    // // int overlapArea = 0;
-    // // for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
-    // //     for (size_t xId = 0; xId < _numXs; ++ xId) {
-    // //         for (size_t yId = 0; yId < _numYs; ++ yId) {
-    // //             Grid* grid = _vGrid[layId][xId][yId];
-    // //             if (grid->congestCur() >= 1) area++;
-    // //             overlapArea += grid->congestCur();
-    // //         }
-    // //     }
-    // // }
-    // // overlapArea -= area;
-    // // cerr << "area = " << area << endl;
-    // // cerr << "overlapArea = " << overlapArea << endl;
+    // overlapArea -= area;
+    // cerr << "area = " << area << endl;
+    // cerr << "overlapArea = " << overlapArea << endl;
 }
 
 void DetailedMgr::clearNet(size_t layId, size_t netId) {

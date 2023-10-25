@@ -73,10 +73,10 @@ int main(int argc, char* argv[]){
 
     DetailedMgr detailedMgr(db, plot, 1);
     detailedMgr.initGridMap();
-    detailedMgr.plotGraph();
+    // detailedMgr.plotGraph();
     // // detailedMgr.plotGridMap();
-    // detailedMgr.naiveAStar();
-    // detailedMgr.plotGridMap();
+    detailedMgr.naiveAStar();
+    detailedMgr.plotGridMap();
 
     // globalMgr.plotDB();
 

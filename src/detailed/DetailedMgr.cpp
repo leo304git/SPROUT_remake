@@ -1,4 +1,5 @@
 #include "DetailedMgr.h"
+#include <Eigen/IterativeLinearSolvers>
 
 void DetailedMgr::initGridMap() {
 
@@ -453,4 +454,55 @@ void DetailedMgr::clearNet(size_t layId, size_t netId) {
     //     _vNetGrid[netId][layId][gridId]->decCongestCur();
     // }
     // _vNetGrid[netId][layId].clear();
+}
+
+void DetailedMgr::eigenTest() {
+    int N = 3;
+    Eigen::SparseMatrix<double, Eigen::RowMajor> A(N, N);
+    Eigen::VectorXd b(N);
+    Eigen::VectorXd x(N);
+    vector< Eigen::Triplet<double> > vTplA;
+    vTplA.reserve(9);
+    vTplA.push_back(Eigen::Triplet<double>(0,0,2));
+    vTplA.push_back(Eigen::Triplet<double>(0,1,-1));
+    vTplA.push_back(Eigen::Triplet<double>(1,0,-1));
+    vTplA.push_back(Eigen::Triplet<double>(1,1,2));
+    vTplA.push_back(Eigen::Triplet<double>(1,2,-1));
+    vTplA.push_back(Eigen::Triplet<double>(2,1,-1));
+    vTplA.push_back(Eigen::Triplet<double>(2,2,2));
+    vTplA.push_back(Eigen::Triplet<double>(0,0,-1));
+    A.setFromTriplets(vTplA.begin(), vTplA.end());
+    b(0) = 1;
+    // b(1) = 0;
+    // b(2) = 0;
+
+    // Eigen::BiCGSTAB<Eigen::SparseMatrix<double, Eigen::RowMajor>, Eigen::IdentityPreconditioner> solver;
+    Eigen::ConjugateGradient<Eigen::SparseMatrix<double, Eigen::RowMajor>, Eigen::Upper> solver;
+    solver.setMaxIterations(100);
+    solver.setTolerance(1e-6);
+    solver.compute(A);
+    x = solver.solveWithGuess(b, x);
+
+    cerr << "A = \n" << Eigen::MatrixXd(A) << endl;
+    cerr << "b = \n" << b << endl;
+    cerr << "x = " << x << endl;
+
+    double x0 = x[0];
+    cerr << "x0 = " << x0 << endl;
+    // A.coeffRef(0,0) = 2;
+    // A.coeffRef(0,1) = -1;
+    // A.coeffRef(0,2) = 0;
+    // A.coeffRef(1,0) = -1;
+    // A.coeffRef(1,1) = 2;
+    // A.coeffRef(1,2) = -1;
+    // A.coeffRef(2,0) = 0;
+    // A.coeffRef(2,1) = -1;
+    // A.coeffRef(2,2) = 2;
+    // A.makeCompressed();
+    // b.coeffRef(0) = 1;
+    // b.coeffRef(1) = 0;
+    // b.coeffRef(2) = 0;
+
+    // ConjugateGradient<SparseMatrix<double>, Eigen::Upper> solver;
+    // x = solver.compute(A).solve(b);
 }

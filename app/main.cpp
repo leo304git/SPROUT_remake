@@ -72,6 +72,7 @@ int main(int argc, char* argv[]){
     // globalMgr.plotCurrentPaths();
 
     DetailedMgr detailedMgr(db, plot, 1);
+    // detailedMgr.eigenTest();
     detailedMgr.initGridMap();
     // detailedMgr.plotGraph();
     // // detailedMgr.plotGridMap();

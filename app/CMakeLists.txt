@@ -8,6 +8,10 @@ target_link_libraries(sprout PRIVATE base detailed)
 # target_link_libraries(pd PUBLIC ${GUROBI_LIBRARY})
 # target_include_directories(pd PRIVATE "${GUROBI_INCLUDE_DIRS}")
 
+# Add Eigen3
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+target_link_libraries(sprout PUBLIC Eigen3::Eigen)
+
 # Add clipp library
 #target_link_libraries(pd PRIVATE clipp)
 #target_include_directories(pd PRIVATE "${clipp_SOURCE_DIR}"

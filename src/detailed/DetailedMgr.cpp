@@ -514,14 +514,66 @@ void DetailedMgr::fillInnerCircle(size_t layId, size_t netId) {
 
     for (size_t i = 0; i < _db.numNets(); ++i){
         for(size_t j = 0; j < _db.numLayers(); ++j){
-            cout<< i << "and  " << j << endl;
+            cout<< i << "  and  " << j << endl;
+
         }
     }
     // _vNetGrid[netId][layId][netGridId]->setOccupied(true);
+    cout << "The X number of is " << _numXs << endl;
+    cout << "The Y number of is " << _numYs << endl;
+    //可以用GridOccupied
+    //grid->netId() == -1，這格是Obstacle或是空的
+    //grid->occupied() == true 代表他是Obstacle
+    //grid->occupied() == false 代表他是空的
+    //grid->netId() == 特定數值，則他會是被這個netId 的 net佔領。
 
-
+    for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
+        cout << "Dealing with layer  " << layId << endl;
+        for (size_t xId = 0; xId < _numXs; ++ xId) {
+            for (size_t yId = 0; yId < _numYs; ++ yId) {
+                Grid* grid = _vGrid[layId][xId][yId];
+                
+                if (grid->netId() == -1) {
+                    if (grid->occupied()) {
+                        cout << "Q ";
+                    } else {
+                        cout << "X ";
+                    }
+                } else {
+                    cout << grid->netId() << " ";
+                }
+            }
+        }
+        cout << endl;
+    }
 
     cout << "///////////////////////////////////" << endl;
     cout << "//Function: fillInnerCircle Ends///" << endl;
     cout << "///////////////////////////////////" << endl;
 }
+
+
+// for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
+//         for (size_t xId = 0; xId < _numXs; ++ xId) {
+//             for (size_t yId = 0; yId < _numYs; ++ yId) {
+//                 Grid* grid = _vGrid[layId][xId][yId];
+                
+
+//                 vector< pair<double, double> > vVtx;
+//                 vVtx.push_back(make_pair(xId*_gridWidth, yId*_gridWidth));
+//                 vVtx.push_back(make_pair((xId+1)*_gridWidth, yId*_gridWidth));
+//                 vVtx.push_back(make_pair((xId+1)*_gridWidth, (yId+1)*_gridWidth));
+//                 vVtx.push_back(make_pair(xId*_gridWidth, (yId+1)*_gridWidth));
+//                 Polygon* p = new Polygon(vVtx, _plot);
+//                 if (grid->netId() == -1) {
+//                     if (grid->occupied()) {
+//                         p->plot(SVGPlotColor::gray, layId);
+//                     } else {
+//                         p->plot(SVGPlotColor::white, layId);
+//                     }
+//                 } else {
+//                     p->plot(grid->netId(), layId);
+//                 }
+//             }
+//         }
+//     }

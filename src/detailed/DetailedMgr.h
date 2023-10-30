@@ -66,6 +66,8 @@ class DetailedMgr {
         void plotGridMap();
         void naiveAStar();
         void eigenTest();
+        void fillInnerCircle(size_t layId, size_t netId);
+
     private:
         void clearNet(size_t layId, size_t netId);
         bool legal(int xId, int yId) { return (xId>=0 && xId<_vGrid[0].size() && yId>=0 && yId<_vGrid[0][0].size()); }

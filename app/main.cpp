@@ -77,6 +77,7 @@ int main(int argc, char* argv[]){
     // detailedMgr.plotGraph();
     // // detailedMgr.plotGridMap();
     detailedMgr.naiveAStar();
+    detailedMgr.fillInnerCircle(1, 2);
     detailedMgr.plotGridMap();
 
     // globalMgr.plotDB();

@@ -506,3 +506,22 @@ void DetailedMgr::eigenTest() {
     // ConjugateGradient<SparseMatrix<double>, Eigen::Upper> solver;
     // x = solver.compute(A).solve(b);
 }
+
+void DetailedMgr::fillInnerCircle(size_t layId, size_t netId) {
+    cout << "///////////////////////////////////" << endl;
+    cout << "//Function: fillInnerCircle Start//" << endl;
+    cout << "///////////////////////////////////" << endl;
+
+    for (size_t i = 0; i < _db.numNets(); ++i){
+        for(size_t j = 0; j < _db.numLayers(); ++j){
+            cout<< i << "and  " << j << endl;
+        }
+    }
+    // _vNetGrid[netId][layId][netGridId]->setOccupied(true);
+
+
+
+    cout << "///////////////////////////////////" << endl;
+    cout << "//Function: fillInnerCircle Ends///" << endl;
+    cout << "///////////////////////////////////" << endl;
+}

@@ -67,6 +67,8 @@ class DetailedMgr {
         void naiveAStar();
         void eigenTest();
         void fillInnerCircle(size_t layId, size_t netId);
+        int indexOfInnerCircles;
+        vector< vector< Grid* > > boardOfInnerCircles; 
 
     private:
         void clearNet(size_t layId, size_t netId);

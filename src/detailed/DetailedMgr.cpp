@@ -527,6 +527,7 @@ void DetailedMgr::fillInnerCircle(size_t layId, size_t netId) {
     //grid->occupied() == false 代表他是空的
     //grid->netId() == 特定數值，則他會是被這個netId 的 net佔領。
 
+
     for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
         cout << "Dealing with layer  " << layId << endl;
         for (size_t xId = 0; xId < _numXs; ++ xId) {

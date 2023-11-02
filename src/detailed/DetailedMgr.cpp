@@ -507,10 +507,17 @@ void DetailedMgr::eigenTest() {
     // x = solver.compute(A).solve(b);
 }
 
+void DetailedMgr::fillBoard(size_t layId, size_t netId, size_t xId, size_t yId) {
+    printf("Filling Board for the point of (%d, %d) of net %d in layer %d \n", xId, yId, netId, layId );
+}
+
 void DetailedMgr::fillInnerCircle(size_t layId, size_t netId) {
     cout << "///////////////////////////////////" << endl;
     cout << "//Function: fillInnerCircle Start//" << endl;
     cout << "///////////////////////////////////" << endl;
+    //We check the condition of each net in each layer, one by one.
+
+    indexOfInnerCircles = 0;
 
     for (size_t i = 0; i < _db.numNets(); ++i){
         for(size_t j = 0; j < _db.numLayers(); ++j){
@@ -536,8 +543,9 @@ void DetailedMgr::fillInnerCircle(size_t layId, size_t netId) {
                 
                 if (grid->netId() == -1) {
                     if (grid->occupied()) {
-                        cout << "Q ";
+                        cout << "Gird  (" << xId << ", " << yId << ") is occupied" << endl ;
                     } else {
+                        fillBoard(layId, netId, xId, yId);
                         cout << "X ";
                     }
                 } else {

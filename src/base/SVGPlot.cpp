@@ -44,3 +44,27 @@ void SVGPlot::drawPolygon(vector< pair<double, double> > vVtx, size_t colorId, s
     }
     _fout << "\" style=\"fill:" << _vColor[colorId] << ";stroke:gray;stroke-width:1;fill-opacity:0.7\" />" << endl;
 }
+
+tuple<int, int, int> SVGPlot::value2color(double value) {
+    double f = (value - _lbColorValue) / (_ubColorValue - _lbColorValue);
+    // cerr << "f = " << f << endl;
+    double a=(1-f)/0.25;
+    int x = floor(a);
+    int y = floor(255*(a - x));
+    int r, g, b;
+    switch(x) {
+        case 0: r=255;   g=y;     b=0;   break;
+        case 1: r=255-y; g=255;   b=0;   break;
+        case 2: r=0;     g=255;   b=y;   break;
+        case 3: r=0;     g=255-y; b=255; break;
+        case 4: r=0;     g=0;     b=255; break;
+        default: r=165;  g=42;   b=42; break;
+    }
+    return make_tuple(r, g, b);
+}
+
+void SVGPlot::drawSquareValue(double leftX, double bottY, double width, double colorValue, size_t layId) {
+    tuple<int, int, int> rgb = value2color(colorValue);
+    _fout << "  <rect x=\"" << (leftX + _boardWidth*layId)*_plotRatio << "\" y=\"" << (_boardHeight - bottY - width)*_plotRatio << "\" width=\"" << width*_plotRatio << "\" height=\"" << width*_plotRatio;
+    _fout << "\" style=\"fill:rgb(" << get<0>(rgb) << "," << get<1>(rgb) << "," << get<2>(rgb) << ");stroke:gray;stroke-width:1\" />\n";
+}

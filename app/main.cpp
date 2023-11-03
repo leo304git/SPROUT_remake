@@ -74,12 +74,22 @@ int main(int argc, char* argv[]){
     DetailedMgr detailedMgr(db, plot, 1);
     // detailedMgr.eigenTest();
     detailedMgr.initGridMap();
+    detailedMgr.check();
     // detailedMgr.plotGraph();
     // // detailedMgr.plotGridMap();
     detailedMgr.naiveAStar();
+    detailedMgr.check();
     detailedMgr.plotGridMap();
+    detailedMgr.synchronize();
+    detailedMgr.check();
+    detailedMgr.addViaGrid();
+    detailedMgr.check();
+    detailedMgr.buildMtx();
+    detailedMgr.check();
+    // detailedMgr.plotGridMapVoltage();
+    detailedMgr.plotGridMapCurrent();
 
-    // globalMgr.plotDB();
+    // detailedMgr.plotDB();
 
 
     // mgr.genRGraph();

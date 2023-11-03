@@ -45,6 +45,8 @@ class Via{
         unsigned int netId() const {return _netId; }
         ViaType viaType() const { return _viaType; }
         Shape* shape() {return _shape;}
+        double x() const { return _shape->ctrX(); }     // 改 _x
+        double y() const { return _shape->ctrY(); }     // 改 _y
         void print() {
             cerr << "Via {netId=" << _netId << ", viaType=" << _viaType << endl;
             cerr << ", shape=";

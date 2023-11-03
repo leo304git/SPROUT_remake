@@ -25,6 +25,7 @@ class Shape {
         virtual double bPolygonY(size_t vtxId) { double bPolygonY; return bPolygonY;}
         virtual size_t numBPolyVtcs() { size_t numBPolyVtcs; return numBPolyVtcs;}
         virtual bool enclose(double x, double y);
+        virtual double area() { double area; return area;}
     protected:
         SVGPlot& _plot;
         // pair<double, double> _center;
@@ -100,6 +101,22 @@ class Polygon : public Shape {
         double bPolygonX(size_t vtxId) { return _vVtx[vtxId].first; }
         double bPolygonY(size_t vtxId) { return _vVtx[vtxId].second; }
         size_t numBPolyVtcs() { return _vVtx.size(); }
+        double area() {
+            // reference: https://www.geeksforgeeks.org/area-of-a-polygon-with-given-n-ordered-vertices/
+            // Initialize area
+            double area = 0.0;
+        
+            // Calculate value of shoelace formula
+            int j = _vVtx.size() - 1;
+            for (int i = 0; i < _vVtx.size(); i++)
+            {
+                area += (_vVtx[j].first + _vVtx[i].first) * (_vVtx[j].second - _vVtx[i].second);
+                j = i;  // j is previous vertex to i
+            }
+        
+            // Return absolute value
+            return abs(area / 2.0);
+        }
     private:
         vector< pair<double, double> > _vVtx;
 };
@@ -136,9 +153,51 @@ class Circle : public Shape {
             double dist = sqrt(pow(x-_ctr.first,2) + pow(y-_ctr.second,2));
             return (dist < _radius);
         }
+        double area() {
+            return M_PI * pow(_radius, 2);
+        }
     private:
         pair<double, double> _ctr;
         double _radius;
+};
+
+class Square : public Shape {
+    public:
+        Square(double minX, double minY, double width, SVGPlot& plot) : _minX(minX), _minY(minY), _width(width), Shape(plot) {}
+        ~Square() {}
+
+        double ctrX() { return _minX + 0.5 * _width; }
+        double ctrY() { return _minY + 0.5 * _width; }
+        void print() {
+            cerr << "Square {min=(" << _minX << " " << _minY << "), width=" << _width << "}" << endl;
+        }
+        void plot(size_t colorId, size_t layId) {
+            _plot.drawSquare(_minX, _minY, _width, colorId, layId);
+        }
+        double maxX() { return _minX + _width; }
+        double minX() { return _minX; }
+        double maxY() { return _minY + _width; }
+        double minY() { return _minY; }
+        double bPolygonX(size_t vtxId) {
+            if (vtxId == 0 || vtxId == 3) return minX();
+            else return maxX();
+        }
+        double bPolygonY(size_t vtxId) {
+            if (vtxId == 0 || vtxId == 1) return minY();
+            else return maxY();
+        }
+        size_t numBPolyVtcs() { return 4; }
+        bool enclose(double x, double y) {
+            return ((x >= _minX) && (x <= _minX+_width) && (y >= _minY) && (y <= _minY+_width));
+        }
+        void plotValue(double value, size_t layId) {
+            _plot.drawSquareValue(_minX, _minY, _width, value, layId);
+        }
+
+    private:
+        double _minX;
+        double _minY;
+        double _width;
 };
 
 class Node : public Shape {

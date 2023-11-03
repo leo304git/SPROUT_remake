@@ -58,14 +58,34 @@ class DetailedMgr {
                 }
                 _vTGrid.push_back(vNetTGrid);
             }
+            // _vTPortCurr.reserve(_db.numNets());
+            for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
+                // _vTPortCurr[netId].reserve(_db.vNet(netId)->numTPorts());
+                vector<double> temp;
+                _vTPortCurr.push_back(temp);
+            }
+            // _vTPortVolt.reserve(_db.numNets());
+            for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
+                // _vTPortVolt[netId].reserve(_db.vNet(netId)->numTPorts());
+                vector<double> temp;
+                _vTPortVolt.push_back(temp);
+            }
         }
         ~DetailedMgr() {}
 
         void initGridMap();
         void plotGraph();
         void plotGridMap();
+        void plotGridMapVoltage();
+        void plotGridMapCurrent();
         void naiveAStar();
         void eigenTest();
+        void plotDB();
+        void synchronize();
+        void addViaGrid();
+        void buildMtx();
+        double getResistance(Grid*, Grid*);
+        void check();
     private:
         void clearNet(size_t layId, size_t netId);
         bool legal(int xId, int yId) { return (xId>=0 && xId<_vGrid[0].size() && yId>=0 && yId<_vGrid[0][0].size()); }
@@ -78,6 +98,8 @@ class DetailedMgr {
         vector< vector< vector< Grid* > > > _vTGrid;    // index = [netId] [layId] [tPortId]
         size_t _numXs;
         size_t _numYs;
+        vector< vector< double > > _vTPortVolt;     // index = [netId] [netTportId], record the target port voltage during simulation
+        vector< vector< double > > _vTPortCurr;     // index = [netId] [netTportId], record the target port current during simulation
 };
 
 #endif

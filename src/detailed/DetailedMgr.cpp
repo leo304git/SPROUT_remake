@@ -509,6 +509,29 @@ void DetailedMgr::eigenTest() {
 
 void DetailedMgr::fillBoard(size_t layId, size_t netId, size_t xId, size_t yId) {
     printf("Filling Board for the point of (%d, %d) of net %d in layer %d \n", xId, yId, netId, layId );
+    Grid* grid = _vGrid[layId][xId][yId];
+    if (grid->netId() == -1) {
+        if (grid->occupied()) {
+            cout << "Gird  (" << xId << ", " << yId << ") is obstacle" << endl ;
+            return ;
+        } 
+        else if (xId < 0 || xId >= _numXs || yId < 0 || yId >= _numYs ){
+            cout << "Gird  (" << xId << ", " << yId << ") is outside of the bounding box" << endl ;                        
+        }
+    }
+    else if (grid -> netId() != -1){
+        cout << "Gird  (" << xId << ", " << yId << ") is occupied by net " << netId << endl ;    
+    }
+    else{
+        
+        fillBoard(layId, netId, xId-1, yId);
+        fillBoard(layId, netId, xId+1, yId);
+        fillBoard(layId, netId, xId, yId-1);
+        fillBoard(layId, netId, xId, yId+1);   
+
+    }
+
+
 }
 
 void DetailedMgr::fillInnerCircle(size_t layId, size_t netId) {
@@ -519,12 +542,6 @@ void DetailedMgr::fillInnerCircle(size_t layId, size_t netId) {
 
     indexOfInnerCircles = 0;
 
-    for (size_t i = 0; i < _db.numNets(); ++i){
-        for(size_t j = 0; j < _db.numLayers(); ++j){
-            cout<< i << "  and  " << j << endl;
-
-        }
-    }
     // _vNetGrid[netId][layId][netGridId]->setOccupied(true);
     cout << "The X number of is " << _numXs << endl;
     cout << "The Y number of is " << _numYs << endl;
@@ -533,10 +550,21 @@ void DetailedMgr::fillInnerCircle(size_t layId, size_t netId) {
     //grid->occupied() == true 代表他是Obstacle
     //grid->occupied() == false 代表他是空的
     //grid->netId() == 特定數值，則他會是被這個netId 的 net佔領。
+    boardOfInnerCircles.resize(_numXs);
+
 
 
     for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
         cout << "Dealing with layer  " << layId << endl;
+
+        //Reset the temp board as the ones in this layer
+        for (size_t xId = 0; xId < _numXs; ++ xId) {
+            boardOfInnerCircles[xId].resize(_numYs);
+            for (size_t yId = 0; yId < _numYs; ++ yId) {
+                boardOfInnerCircles[xId][yId] = _vGrid[layId][xId][yId];
+            }
+        }
+
         for (size_t xId = 0; xId < _numXs; ++ xId) {
             for (size_t yId = 0; yId < _numYs; ++ yId) {
                 Grid* grid = _vGrid[layId][xId][yId];

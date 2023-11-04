@@ -77,7 +77,16 @@ int main(int argc, char* argv[]){
     // detailedMgr.plotGraph();
     // // detailedMgr.plotGridMap();
     detailedMgr.naiveAStar();
-    detailedMgr.fillInnerCircle(1, 2);
+
+    for (size_t layId = 0; layId < db.numLayers(); ++ layId) {
+        for (size_t netId = 0; netId < db.numNets(); ++netId){
+            detailedMgr.fillInnerCircle(layId, netId);
+        }        
+    }    
+    // detailedMgr.fillInnerCircle(0, 1);
+    
+
+
     detailedMgr.plotGridMap();
 
     // globalMgr.plotDB();

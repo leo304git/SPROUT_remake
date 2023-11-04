@@ -69,7 +69,8 @@ class DetailedMgr {
         void fillInnerCircle(size_t layId, size_t netId);
         void fillBoard(size_t layId, size_t netId, size_t xId, size_t yId);
         int indexOfInnerCircles;
-        vector< vector< size_t > > boardOfInnerCircles; 
+        bool thisSearchHaveFinished;
+        vector< vector< int > > boardOfInnerCircles; 
 
     private:
         void clearNet(size_t layId, size_t netId);

@@ -509,42 +509,39 @@ void DetailedMgr::eigenTest() {
 
 void DetailedMgr::fillBoard(size_t layId, size_t netId, size_t xId, size_t yId) {
 
-    //return;
 
-    printf("Filling Board for the point of (%d, %d) of net %d in layer %d \n", xId, yId, netId, layId );
+
+    // printf("Filling Board for the point of (%d, %d) of net %d in layer %d \n", xId, yId, netId, layId );
+    // cout << "Index of the Inner Circle is now  " << indexOfInnerCircles << endl;
+    // cout << "Net ID is  " << netId << endl; 
     Grid* grid = _vGrid[layId][xId][yId];
-
+    // cout << "Grid Net ID is  " << grid -> netId() << endl;
+    //It has already be set a number
     if(boardOfInnerCircles[xId][yId] != -1){
         return;
     }
-    if (grid->netId() == -1) {
-        if (grid->occupied()) {
-            // cout << "Gird  (" << xId << ", " << yId << ") is obstacle" << endl ;
-            return ;
-        } 
-        else if (xId < 0 || xId >= _numXs || yId < 0 || yId >= _numYs ){
-            // cout << "Gird  (" << xId << ", " << yId << ") is outside of the bounding box" << endl ;                        
-        }
+
+    //It is obstalce
+    if (grid->netId() == -1 && grid->occupied()) {
+        return;
     }
-    else if (grid -> netId() != -1){
-        if(grid -> netId() == netId){
-            return;
-        }
-        else{
-            fillBoard(layId, netId, xId-1, yId);
-            fillBoard(layId, netId, xId+1, yId);
-            fillBoard(layId, netId, xId, yId-1);
-            fillBoard(layId, netId, xId, yId+1);   
-        }
-        // cout << "Gird  (" << xId << ", " << yId << ") is occupied by net " << netId << endl ;    
+
+    //This is a net of the searching net
+    if (grid->netId() == netId){
+        return;
     }
-    else if (grid->netId() == -1 && !grid->occupied()){
-        boardOfInnerCircles[xId][yId] = indexOfInnerCircles; 
-        fillBoard(layId, netId, xId-1, yId);
-        fillBoard(layId, netId, xId+1, yId);
-        fillBoard(layId, netId, xId, yId-1);
-        fillBoard(layId, netId, xId, yId+1);  
-        
+
+    //基本的判斷完了，現在開始查找其他人
+    if (!grid->occupied() || (grid-> netId() != netId && grid ->netId() >= 0)) {
+        //找的時候應該只要找他那格是-1，而且沒有被Occupied，或是NetId錯，我只填其他條Net或是空格
+
+        boardOfInnerCircles[xId][yId] = indexOfInnerCircles;
+
+        if(xId > 0)   fillBoard(layId, netId, xId-1, yId);
+        if(xId < _numXs - 1)  fillBoard(layId, netId, xId+1, yId);
+        if(yId > 0) fillBoard(layId, netId, xId, yId-1);
+        if(yId < _numYs - 1) fillBoard(layId, netId, xId, yId+1);  
+
     }
     
 }
@@ -557,6 +554,7 @@ void DetailedMgr::fillInnerCircle(size_t layId, size_t netId) {
 
     //We check the condition of each net in each layer, one by one.
     indexOfInnerCircles = 0;
+    bool thisSearchHaveFinished = false;
 
     // _vNetGrid[netId][layId][netGridId]->setOccupied(true);
     cout << "The X number of is " << _numXs << endl;
@@ -582,18 +580,21 @@ void DetailedMgr::fillInnerCircle(size_t layId, size_t netId) {
     for (size_t xId = 0; xId < _numXs; ++ xId) {
         for (size_t yId = 0; yId < _numYs; ++ yId) {
             Grid* grid = _vGrid[layId][xId][yId];
-            
-            if (grid->netId() == -1) {
-                if (grid->occupied()) {
-                    // cout << "Gird  (" << xId << ", " << yId << ") is occupied" << endl ;
-                } else {
-                    fillBoard(layId, netId, xId, yId);
-                    ++ indexOfInnerCircles ;
-                    // cout << "X ";
-                }
-            } 
-            else {
-                // cout << grid->netId() << " ";
+        
+            if (grid->netId() == -1 && !grid->occupied() && boardOfInnerCircles[xId][yId] == -1){
+                thisSearchHaveFinished = false;
+                fillBoard(layId, netId, xId, yId);
+
+                // cout << "I really got here" << endl;
+                ++ indexOfInnerCircles;
+                
+            }
+            else if (grid-> netId() != netId && grid ->netId() >= 0 && boardOfInnerCircles[xId][yId] == -1){
+                thisSearchHaveFinished = false;
+                fillBoard(layId, netId, xId, yId);
+                cout << "I really got here" << endl;
+                ++ indexOfInnerCircles;
+                
             }
         }
     }
@@ -601,45 +602,22 @@ void DetailedMgr::fillInnerCircle(size_t layId, size_t netId) {
     for (size_t xId = 0; xId < _numXs; ++ xId) {
         for (size_t yId = 0; yId < _numYs; ++ yId) {
             Grid* grid = _vGrid[layId][xId][yId];
-            if(boardOfInnerCircles[xId][yId] == 1){
+            if(boardOfInnerCircles[xId][yId] > 0 && !grid->occupied() ){
                 // cout <<" " << boardOfInnerCircles[xId][yId] << " ";
-                cout << "Yes";
-                // grid->setNetId(netId);
+                // cout << boardOfInnerCircles[xId][yId] << endl;
+                grid->setNetId(netId);
             }
             // cout << endl;
+            // printf("Point of (%d, %d), board value is %d \n", xId, yId, boardOfInnerCircles[xId][yId]);
+
         }
     }
     
     cout << endl;
+    indexOfInnerCircles ++;
     cout << indexOfInnerCircles << endl;
 
     cout << "///////////////////////////////////" << endl;
     cout << "//Function: fillInnerCircle Ends///" << endl;
     cout << "///////////////////////////////////" << endl;
 }
-
-
-// for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
-//         for (size_t xId = 0; xId < _numXs; ++ xId) {
-//             for (size_t yId = 0; yId < _numYs; ++ yId) {
-//                 Grid* grid = _vGrid[layId][xId][yId];
-                
-
-//                 vector< pair<double, double> > vVtx;
-//                 vVtx.push_back(make_pair(xId*_gridWidth, yId*_gridWidth));
-//                 vVtx.push_back(make_pair((xId+1)*_gridWidth, yId*_gridWidth));
-//                 vVtx.push_back(make_pair((xId+1)*_gridWidth, (yId+1)*_gridWidth));
-//                 vVtx.push_back(make_pair(xId*_gridWidth, (yId+1)*_gridWidth));
-//                 Polygon* p = new Polygon(vVtx, _plot);
-//                 if (grid->netId() == -1) {
-//                     if (grid->occupied()) {
-//                         p->plot(SVGPlotColor::gray, layId);
-//                     } else {
-//                         p->plot(SVGPlotColor::white, layId);
-//                     }
-//                 } else {
-//                     p->plot(grid->netId(), layId);
-//                 }
-//             }
-//         }
-//     }

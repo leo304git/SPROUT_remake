@@ -84,7 +84,9 @@ int main(int argc, char* argv[]){
         }        
     }    
     // detailedMgr.fillInnerCircle(0, 1);
+
     
+    detailedMgr.SPROUT();
 
 
     detailedMgr.plotGridMap();

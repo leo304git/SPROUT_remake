@@ -68,6 +68,9 @@ class DetailedMgr {
         void eigenTest();
         void fillInnerCircle(size_t layId, size_t netId);
         void fillBoard(size_t layId, size_t netId, size_t xId, size_t yId);
+        void SmartGrow(size_t layId, size_t netId, int k);
+        void SmartRefine(size_t layId, size_t netId, int k);
+        void SPROUT();
         int indexOfInnerCircles;
         bool thisSearchHaveFinished;
         vector< vector< int > > boardOfInnerCircles; 

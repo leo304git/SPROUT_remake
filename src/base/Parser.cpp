@@ -55,15 +55,15 @@ void Parser::testInitialize(double boardWidth, double boardHeight, double gridWi
     _db.addCircleVia(10*gridWidth, 3*gridWidth, 2, ViaType::Source);
     _db.addCircleVia(11*gridWidth, 3*gridWidth, 2, ViaType::Source);
     viaCstr = _db.clusterVia({16,17,18,19});
-    _db.addPort(1.7, 2*currentBase, viaCstr);
-    _db.addCircleVia(10*gridWidth, 11*gridWidth, 2, ViaType::Target);
-    _db.addCircleVia(10*gridWidth, 12*gridWidth, 2, ViaType::Target);
-    viaCstr = _db.clusterVia({20,21});
-    _db.addPort(1.65, currentBase, viaCstr);
+    _db.addPort(1.7, currentBase, viaCstr);
+    // _db.addCircleVia(10*gridWidth, 11*gridWidth, 2, ViaType::Target);
+    // _db.addCircleVia(10*gridWidth, 12*gridWidth, 2, ViaType::Target);
+    // viaCstr = _db.clusterVia({20,21});
+    // _db.addPort(1.65, currentBase, viaCstr);
     _db.addCircleVia(9*gridWidth, 17*gridWidth, 2, ViaType::Target);
     _db.addCircleVia(10*gridWidth, 17*gridWidth, 2, ViaType::Target);
     _db.addCircleVia(11*gridWidth, 17*gridWidth, 2, ViaType::Target);
-    viaCstr = _db.clusterVia({22,23,24});
+    viaCstr = _db.clusterVia({20,21,22});
     _db.addPort(1.5, currentBase, viaCstr);
 
     // Obstacle

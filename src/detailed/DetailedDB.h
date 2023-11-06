@@ -21,10 +21,14 @@ class Grid {
         Grid* vNeighbor(size_t nbrId) { return _vNeighbor[nbrId]; }
         size_t numNeighbors() const { return _vNeighbor.size(); }
         int netId() const { return _netId; }
+        double voltage() const { return _voltage; }
+        double current() const { return _current; }
 
         void setOccupied(bool occupied) { _occupied = occupied; }
         void addNeighbor(Grid* grid) { _vNeighbor.push_back(grid); }
         void setNetId(int netId) { _netId = netId; }
+        void setVoltage(double voltage) { _voltage = voltage; }
+        void setCurrent(double current) { _current = current; }
         // int congestion() const { return _congestion; }
         // int congestCur() const { return _congestCur; }
         // int congestHis() const { return _congestHis; }
@@ -57,6 +61,8 @@ class Grid {
         bool _occupied;
         int _netId;
         vector<Grid*> _vNeighbor;
+        double _voltage;
+        double _current;
 };
 
 enum GNodeStatus {

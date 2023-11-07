@@ -74,9 +74,20 @@ int main(int argc, char* argv[]){
     DetailedMgr detailedMgr(db, plot, 1);
     // detailedMgr.eigenTest();
     detailedMgr.initGridMap();
+    detailedMgr.check();
     // detailedMgr.plotGraph();
     // // detailedMgr.plotGridMap();
     detailedMgr.naiveAStar();
+    detailedMgr.check();
+    //detailedMgr.plotGridMap();
+    detailedMgr.synchronize();
+    detailedMgr.check();
+    detailedMgr.addViaGrid();
+    detailedMgr.check();
+    detailedMgr.buildMtx();
+    detailedMgr.check();
+    // detailedMgr.plotGridMapVoltage();
+    //detailedMgr.plotGridMapCurrent();
 
     for (size_t layId = 0; layId < db.numLayers(); ++ layId) {
         for (size_t netId = 0; netId < db.numNets(); ++netId){
@@ -87,7 +98,8 @@ int main(int argc, char* argv[]){
     
     detailedMgr.SPROUT();
 
-    detailedMgr.plotGridMap();
+    //detailedMgr.plotGridMap();
+    detailedMgr.plotGridMapCurrent();
 
     // globalMgr.plotDB();
 

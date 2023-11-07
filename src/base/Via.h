@@ -21,11 +21,27 @@ class ViaEdge {
 
 class PadStack {
     public:
+        friend class Via;
+        PadStack(string name, string shape, double drillRadius, vector<double> vRegular, vector<double> vAnti)
+        : _name(name), _shape(shape), _drillRadius(drillRadius), _vRegular(vRegular), _vAnti(vAnti) {
+            _copperWidth = 0.8 * 0.0254;
+            _metalArea = M_PI * (pow(drillRadius, 2) - pow(drillRadius-_copperWidth, 2));
+        }
+        ~PadStack() {}
+
+        double padRadius(size_t layId) const { return _vRegular[layId]; }
+        double antiPadRadius(size_t layId) const { return _vAnti[layId]; }
+        double drillRadius() const { return _drillRadius; }
+        double copperWidth() const { return _copperWidth; }
+        double metalArea() const { return _metalArea; }
     private:
         string _name;
         string _shape;
         vector< double > _vRegular;   // if circle: radius; if square: width
         vector< double > _vAnti;      // if circle: radius; if square: width
+        double _drillRadius;
+        double _copperWidth;
+        double _metalArea;
 };
 
 enum ViaType {

@@ -61,13 +61,13 @@ class DetailedMgr {
             // _vTPortCurr.reserve(_db.numNets());
             for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
                 // _vTPortCurr[netId].reserve(_db.vNet(netId)->numTPorts());
-                vector<double> temp;
+                vector<double> temp(_db.vNet(netId)->numTPorts(), 0.0);
                 _vTPortCurr.push_back(temp);
             }
             // _vTPortVolt.reserve(_db.numNets());
             for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
                 // _vTPortVolt[netId].reserve(_db.vNet(netId)->numTPorts());
-                vector<double> temp;
+                vector<double> temp(_db.vNet(netId)->numTPorts(), 0.0);
                 _vTPortVolt.push_back(temp);
             }
         }
@@ -80,6 +80,12 @@ class DetailedMgr {
         void plotGridMapCurrent();
         void naiveAStar();
         void eigenTest();
+        void plotDB();
+        void synchronize();
+        void addViaGrid();
+        void buildMtx();
+        double getResistance(Grid*, Grid*);
+        void check();
         void fillInnerCircle(size_t layId, size_t netId);
         void fillBoard(size_t layId, size_t netId, size_t xId, size_t yId);
         void SmartGrow(size_t layId, size_t netId, int k);
@@ -88,7 +94,7 @@ class DetailedMgr {
         int indexOfInnerCircles;
         bool thisSearchHaveFinished;
         vector< vector< int > > boardOfInnerCircles; 
-
+        
     private:
         void clearNet(size_t layId, size_t netId);
         bool legal(int xId, int yId) { return (xId>=0 && xId<_vGrid[0].size() && yId>=0 && yId<_vGrid[0][0].size()); }

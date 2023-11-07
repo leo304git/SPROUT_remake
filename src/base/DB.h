@@ -61,6 +61,7 @@ class DB {
         double boardHeight()              const { return _boardHeight; }
         double areaWeight()               const { return _areaWeight; }
         double viaWeight()                const { return _viaWeight; }
+        PadStack* VIA16D8A24()                  { return _VIA16D8A24; }
 
         // size_t addVia(unsigned int rowId, unsigned int colId, unsigned int netId, ViaType type) {
         //     for (size_t layId = 0; layId < _numLayers; ++layId) {
@@ -190,6 +191,12 @@ class DB {
 
         // void addSVGPlot(SVGPlot& plot) { _plot = SVGPlot&(plot); }
 
+        void setVIA16D8A24() {
+            vector<double> vRegular(numLayers(), 8*0.0254);
+            vector<double> vAnti(numLayers(), 12*0.0254);
+            _VIA16D8A24 = new PadStack("VIA16D8A24", "Circle", 4*0.0254, vRegular, vAnti);
+        }
+
         void print() {
             cerr << "DB {boardWidth=" << _boardWidth << ", boardHeight=" << _boardHeight << endl;
             cerr << "vObstacle=" << endl;
@@ -247,6 +254,7 @@ class DB {
         // size_t _numCols;
         map<string, int>    _nodeName2Id;
         // map<string, int>    _layName2Id;
+        PadStack* _VIA16D8A24;
 };
 
 #endif

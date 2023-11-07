@@ -61,13 +61,13 @@ class DetailedMgr {
             // _vTPortCurr.reserve(_db.numNets());
             for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
                 // _vTPortCurr[netId].reserve(_db.vNet(netId)->numTPorts());
-                vector<double> temp;
+                vector<double> temp(_db.vNet(netId)->numTPorts(), 0.0);
                 _vTPortCurr.push_back(temp);
             }
             // _vTPortVolt.reserve(_db.numNets());
             for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
                 // _vTPortVolt[netId].reserve(_db.vNet(netId)->numTPorts());
-                vector<double> temp;
+                vector<double> temp(_db.vNet(netId)->numTPorts(), 0.0);
                 _vTPortVolt.push_back(temp);
             }
         }

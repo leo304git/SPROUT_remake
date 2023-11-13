@@ -35,8 +35,10 @@ class DetailedMgr {
             for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
                 vector< Grid* > vNetSGrid;
                 for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
-                    size_t xId = _db.vNet(netId)->sourceViaCstr()->centerX() / _gridWidth;
-                    size_t yId = _db.vNet(netId)->sourceViaCstr()->centerY() / _gridWidth;
+                    // size_t xId = _db.vNet(netId)->sourceViaCstr()->centerX() / _gridWidth;
+                    // size_t yId = _db.vNet(netId)->sourceViaCstr()->centerY() / _gridWidth;
+                    size_t xId = _db.vNet(netId)->sourcePort()->boundPolygon()->ctrX() / _gridWidth;
+                    size_t yId = _db.vNet(netId)->sourcePort()->boundPolygon()->ctrY() / _gridWidth;
                     Grid* sGrid = new Grid(xId, yId);
                     sGrid->setOccupied(false);
                     vNetSGrid.push_back(sGrid);
@@ -48,8 +50,10 @@ class DetailedMgr {
                 for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
                     vector< Grid* > vLayTGrid;
                     for (size_t tPortId = 0; tPortId < _db.vNet(netId)->numTPorts(); ++ tPortId) {
-                        size_t xId = _db.vNet(netId)->vTargetViaCstr(tPortId)->centerX() / _gridWidth;
-                        size_t yId = _db.vNet(netId)->vTargetViaCstr(tPortId)->centerY() / _gridWidth;
+                        // size_t xId = _db.vNet(netId)->vTargetViaCstr(tPortId)->centerX() / _gridWidth;
+                        // size_t yId = _db.vNet(netId)->vTargetViaCstr(tPortId)->centerY() / _gridWidth;
+                        size_t xId = _db.vNet(netId)->targetPort(tPortId)->boundPolygon()->ctrX() / _gridWidth;
+                        size_t yId = _db.vNet(netId)->targetPort(tPortId)->boundPolygon()->ctrY() / _gridWidth;
                         Grid* tGrid = new Grid(xId, yId);
                         tGrid->setOccupied(false);
                         vLayTGrid.push_back(tGrid);
@@ -83,7 +87,8 @@ class DetailedMgr {
         void plotDB();
         void synchronize();
         void addViaGrid();
-        void buildMtx();
+        void buildSingleNetMtx(size_t netId);
+        void buildMtx(size_t numLayers);
         double getResistance(Grid*, Grid*);
         void check();
         void fillInnerCircle(size_t layId, size_t netId);

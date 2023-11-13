@@ -33,22 +33,34 @@ class Port {
     public:
         Port(size_t portId, double voltage, double current, ViaCluster* viaCstr)
         : _portId(portId), _voltage(voltage), _current(current), _viaCluster(viaCstr) {}
+        Port(size_t portId, int netTPortId, double voltage, double current)
+        : _portId(portId), _netTPortId(netTPortId), _voltage(voltage), _current(current) { _viaCluster = NULL;}
         ~Port() {}
         size_t portId() const { return _portId; }
+        int netTPortId() const { return _netTPortId; }
         double voltage() const { return _voltage; }
         double current() const { return _current; }
         ViaCluster* viaCluster() { return _viaCluster; }
+        Polygon* boundPolygon() { return _boundPolygon; }
+        void setBoundPolygon(Polygon* polygon) { _boundPolygon = polygon; }
+        void setViaArea(double viaArea) { _viaArea = viaArea; }
+        void setViaCluster(ViaCluster* viaCluster) { _viaCluster = viaCluster; }
         void print() {
             cerr << "Port {portId=" << _portId << ", voltage=" << _voltage << ", current=" << _current << endl;
-            cerr << ", viaCluster=";
-            _viaCluster->print();
+            cerr << ", netPortId=" << _netTPortId << ", boundPolygon=";
+            _boundPolygon->print();
+            // cerr << ", viaCluster=";
+            // _viaCluster->print();
             cerr << "}" << endl;
         }
     private:
         size_t _portId;
+        int _netTPortId;
         double _voltage;
         double _current;
         ViaCluster* _viaCluster;
+        Polygon* _boundPolygon;
+        double _viaArea;    // assigned in GlobalMgr::currVoltOpt()
 };
 
 // class TwoPinNet {

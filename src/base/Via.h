@@ -54,6 +54,9 @@ class Via{
     public:
         // Via(unsigned int rowId, unsigned int colId, unsigned int netId, ViaType type, Shape* shape): _rowId(rowId), _colId(colId), _netId(netId), _viaType(type), _shape(shape) {}
         Via(unsigned int netId, ViaType type, Shape* shape): _netId(netId), _viaType(type), _shape(shape) {}
+        Via(double x, double y, PadStack* padStack, size_t netId, ViaType type, SVGPlot& plot): _x(x), _y(y), _padStack(padStack), _netId(netId), _viaType(type) {
+            _shape = new Circle(x, y, padStack->_drillRadius, plot);
+        }
         ~Via() {}
         
         // unsigned int rowId() const { return _rowId; }
@@ -72,18 +75,21 @@ class Via{
     private:
         // unsigned int _rowId;
         // unsigned int _colId;
-        unsigned int _netId;
+        size_t _netId;
         ViaType _viaType;
         Shape* _shape;
-        string _padStackName;
-        double _padDiameter;
-        double _drillDiameter;
-        double _antiPadDiameter;
+        PadStack* _padStack;
+        double _x;
+        double _y;
+        // string _padStackName;
+        // double _padDiameter;
+        // double _drillDiameter;
+        // double _antiPadDiameter;
 };
 
 class ViaCluster{
     public:
-        ViaCluster() {}
+        ViaCluster() { _vVia.clear();}
         ~ViaCluster() {}
 
         Via*    vVia(int viaId) const { return _vVia[viaId]; }
@@ -109,7 +115,7 @@ class ViaCluster{
         //     return cColId;
         // }
 
-        Shape* bBox() { return _bBox; }
+        // Shape* bBox() { return _bBox; }
 
         double centerX() {
             double x = 0;

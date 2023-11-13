@@ -159,15 +159,90 @@ void Parser::parse() {
     //     // cerr << "layer[" << layId << "] = " << _db.vMetalLayer(layId)->layName() << endl;
     //     // _db.vMetalLayer(layId)->print();
     // }
+    parseST();
     parseLayer();
+    _db.setVIA16D8A24();
 
 
     // parse shape
     _fin.seekg(_fin.beg);
-    parseShape();
+    // parseShape();
     data = parseNodeTrace();
-    parseVia(data);
-    
+    // parseVia(data);
+    // getline(_fin, data);
+    // cerr << "before parseConnect: " << data << endl;
+    parseConnect();
+
+}
+
+void Parser::parseST() {
+    string word;
+    size_t numNets;
+    _finST >> word;
+    assert(word == "#Nets");
+    _finST >> numNets;
+    _db.initNet(numNets);
+    // cerr << "numNets = " << numNets << endl;
+    for (size_t netId = 0; netId < numNets; ++ netId) {
+        string netName;
+        _finST >> netName;
+        _vNetName.push_back(netName);
+        // cerr << "netName = " << netName << endl;
+
+        _finST >> word;
+        assert(word == "#VRM");
+        size_t numVRMs;
+        _finST >> numVRMs;
+        // cerr << "numVRMs = " << numVRMs << endl;
+        vector<string> tempVRM;
+        for (size_t VRMId = 0; VRMId < numVRMs; ++VRMId) {
+            string VRM;
+            _finST >> VRM;
+            tempVRM.push_back(VRM);
+            // cerr << "VRM = " << VRM << endl;
+        }
+        _vVRM.push_back(tempVRM);
+
+        _finST >> word;
+        assert(word == ".Voltage");
+        double sVolt;
+        _finST >> sVolt;
+        _finST >> word;
+        assert(word == ".Current");
+        double sCurr;
+        _finST >> sCurr;
+        _db.addSPort(netId, sVolt, sCurr);
+
+        _finST >> word;
+        assert(word == "#SINK");
+        size_t numSINKs;
+        _finST >> numSINKs;
+        // cerr << "numSINKs = " << numSINKs << endl;
+        vector<string> tempSINK;
+        for (size_t SINKId = 0; SINKId < numSINKs; ++SINKId) {
+            string SINK;
+            _finST >> SINK;
+            tempSINK.push_back(SINK);
+            // cerr << "SINK = " << SINK << endl;
+        }
+        _vSINK.push_back(tempSINK);
+
+        _finST >> word;
+        assert(word == "#TPORT");
+        size_t numTPORTs;
+        _finST >> numTPORTs;
+        for (size_t tPortId = 0; tPortId < numTPORTs; ++ tPortId) {
+            _finST >> word;
+            assert(word == ".Voltage");
+            double tVolt;
+            _finST >> tVolt;
+            _finST >> word;
+            assert(word == ".Current");
+            double tCurr;
+            _finST >> tCurr;
+            _db.addTPort(netId, tVolt, tCurr);
+        }
+    }
 
 }
 
@@ -307,8 +382,8 @@ void Parser::parseShape() {
                     // cerr << "+ " << ends;
                     ss >> garbage;
                     while (ss.peek() >= ' ') {
-                        x = extractDouble(ss, 2);
-                        y = extractDouble(ss, 2);
+                        x = extractDouble(ss, 2) - _offsetX;
+                        y = extractDouble(ss, 2) - _offsetY;
                         // cerr << "vtx = (" << x << ", " << y << ") " << ends;
                         vVtx.push_back(make_pair(x,y));
                     }
@@ -344,8 +419,8 @@ void Parser::parseShape() {
                 // center position and radius
                 double ctrX, ctrY, radius;
                 // cerr << ss.str() << endl;
-                ctrX = extractDouble(ss, 2);
-                ctrY = extractDouble(ss, 2);
+                ctrX = extractDouble(ss, 2) - _offsetX;
+                ctrY = extractDouble(ss, 2) - _offsetY;
                 radius = extractDouble(ss, 2);
                 // construct circle
                 shape = new Circle(ctrX, ctrY, radius, _plot);
@@ -371,6 +446,7 @@ void Parser::parseShape() {
             }
         }
     }
+    cerr << "ploygon end = " << data << endl;
 }
 
 string Parser::parseNodeTrace() {
@@ -379,7 +455,7 @@ string Parser::parseNodeTrace() {
     string garbage;
     data = toLineBegin("Node");
     ss.str(data);
-    // cerr << data << endl;
+    cerr << "parseNodeTrace: " <<  data << endl;
     while(data.substr(0,4) == "Node") {
         string nodeName;
         stringstream sNodeName;
@@ -395,13 +471,13 @@ string Parser::parseNodeTrace() {
         assert(garbage == "X");
         ss >> garbage;
         assert(garbage == "=");
-        x = extractDouble(ss, 2);
+        x = extractDouble(ss, 2) - _offsetX;
         // cerr << " x = " << x << endl;
         ss >> garbage;
         assert(garbage == "Y");
         ss >> garbage;
         assert(garbage == "=");
-        y = extractDouble(ss, 2);
+        y = extractDouble(ss, 2) - _offsetY;
         // cerr << " y = " << y << endl;
 
         string layName;
@@ -485,6 +561,7 @@ void Parser::parseVia(string data) {
     stringstream ss;
     string garbage;
     ss.str(data);
+    cerr << "parseVia: " << data << endl;
     while (data.substr(0,3) == "Via") {
         string netName;
         if (ss.str().find("::") != string::npos) {
@@ -537,6 +614,143 @@ void Parser::parseVia(string data) {
 
         getline(_fin, data);
         ss.str(data);
+    }
+}
+
+void Parser::parseConnect() {
+    // for (size_t netId = 0; netId < _vNetName.size(); ++ netId) {
+    //     cerr << _vNetName[netId] << endl;
+    //     for (size_t VRMId = 0; VRMId < _vVRM[netId].size(); ++ VRMId) {
+    //         cerr << _vVRM[netId][VRMId] << endl;
+    //     }
+    //     for (size_t SINKId = 0; SINKId < _vSINK[netId].size(); ++ SINKId) {
+    //         cerr << _vSINK[netId][SINKId] << endl;
+    //     }
+    // }
+    // for (size_t netId = 0; netId < _vNetName.size(); ++ netId) {
+    //     vector<string> temp;
+    //     _vSNode.push_back(temp);
+    //     _vTNode.push_back(temp);
+    // }
+    string data;
+    stringstream ss;
+    string garbage;
+    data = toLineBegin(".Connect");
+    // cerr << "data = " << data << endl;
+    while(data.substr(0,8) == ".Connect") {
+        // cerr << "data = " << data << endl;
+        ss.str(data);
+        string connectName;
+        ss >> garbage;
+        assert(garbage == ".Connect");
+        ss >> connectName;
+        // cerr << "connectName = " << connectName << endl;
+        bool isVRM = false;
+        bool isSINK = false;
+        for (size_t netId = 0; netId < _vNetName.size(); ++ netId) {
+            for (size_t VRMId = 0; VRMId < _vVRM[netId].size(); ++ VRMId) {
+                if (connectName == _vVRM[netId][VRMId]) {
+                    // cerr << "connectName = " << connectName << endl;
+                    isVRM = true;
+                    // break;
+                }
+            }
+            for (size_t SINKId = 0; SINKId < _vSINK[netId].size(); ++ SINKId) {
+                // cerr << _vSINK[netId][SINKId] << endl;
+                if (connectName == _vSINK[netId][SINKId]) {
+                    // cerr << "connectName = " << connectName << endl;
+                    isSINK = true;
+                    // break;
+                }
+            }
+        }
+        if (isVRM) {
+            getline(_fin, data);
+            while (data.substr(0,5) != ".EndC") {
+                ss.str(data);
+                ss >> garbage;
+                string nodeName, netName;
+                ss >> nodeName;
+                netName = nodeName;
+                if (nodeName.find("::") != string::npos) {
+                    stringstream sNodeName;
+                    sNodeName.clear();
+                    sNodeName.str(nodeName);
+                    getline(sNodeName, nodeName, ':');
+                    nodeName.erase(0,13);
+                    // cerr << "nodeName = " << nodeName << endl;
+                    stringstream sNetName;
+                    sNetName.str(netName);
+                    sNetName.ignore(numeric_limits<streamsize>::max(), ':');
+                    sNetName.ignore(numeric_limits<streamsize>::max(), ':');
+                    // netName.clear();
+                    sNetName >> netName;
+                    // cerr << "netName = " << netName << endl;
+                    for (size_t netId = 0; netId < _vNetName.size(); ++ netId) {
+                        if (netName == _vNetName[netId]) {
+                            // cerr << "netName = " << netName << endl;
+                            // cerr << "   nodeName = " << nodeName << endl;
+                            // _vSNode[netId].push_back(nodeName);
+                            _db.addSNode(netId, nodeName);
+                        }
+                    }
+                }
+                getline(_fin, data);
+            }
+        } else if (isSINK) {
+            getline(_fin, data);
+            while (data.substr(0,5) != ".EndC") {
+                ss.str(data);
+                ss >> garbage;
+                string nodeName, netName;
+                ss >> nodeName;
+                netName = nodeName;
+                if (nodeName.find("::") != string::npos) {
+                    stringstream sNodeName;
+                    sNodeName.clear();
+                    sNodeName.str(nodeName);
+                    getline(sNodeName, nodeName, ':');
+                    nodeName.erase(0,13);
+                    // cerr << "nodeName = " << nodeName << endl;
+                    stringstream sNetName;
+                    sNetName.str(netName);
+                    sNetName.ignore(numeric_limits<streamsize>::max(), ':');
+                    sNetName.ignore(numeric_limits<streamsize>::max(), ':');
+                    // netName.clear();
+                    sNetName >> netName;
+                    // cerr << "netName = " << netName << endl;
+                    for (size_t netId = 0; netId < _vNetName.size(); ++ netId) {
+                        // cerr << "netId = " << netId << endl;
+                        if (netName == _vNetName[netId]) {
+                            // cerr << "netName = " << netName << endl;
+                            // cerr << "   nodeName = " << nodeName << endl;
+                            // _vTNode[netId].push_back(nodeName);
+                            _db.addTNode(netId, nodeName);
+                        }
+                    }
+                }
+                getline(_fin, data);
+            }
+        } else {
+            while (data.substr(0,5) != ".EndC") {
+                getline(_fin, data);
+            }
+        }
+        getline(_fin, data);
+    }
+
+    for (size_t netId = 0; netId < _vNetName.size(); ++ netId) {
+        // cerr << "Net: " << _vNetName[netId] << endl;
+        for (size_t sNodeId = 0; sNodeId < _db.numSNodes(netId); ++ sNodeId) {
+            // cerr << "   SNode: " << _db.vSNode(netId, sNodeId)->name() << endl;
+            DBNode* sNode = _db.vSNode(netId, sNodeId);
+            sNode->node()->plot(netId, sNode->layId());
+        }
+        for (size_t tNodeId = 0; tNodeId < _db.numTNodes(netId); ++ tNodeId) {
+            // cerr << "   TNode: " << _db.vTNode(netId, tNodeId)->name() << endl;
+            DBNode* tNode = _db.vTNode(netId, tNodeId);
+            tNode->node()->plot(netId, tNode->layId());
+        }
     }
 }
 

@@ -212,7 +212,7 @@ class Node : public Shape {
             cerr << "Node {center=(" << _ctr.first << " " << _ctr.second << ")}" << endl;
         }
         void plot(size_t colorId, size_t layId) {
-            _plot.drawCircle(_ctr.first, _ctr.second, 2, colorId, layId);
+            _plot.drawCircle(_ctr.first, _ctr.second, 4*0.0254, colorId, layId);
         } 
         double maxX() { return _ctr.first; }
         double minX() { return _ctr.first; }

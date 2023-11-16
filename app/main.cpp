@@ -4,10 +4,14 @@
 #include "base/SVGPlot.h"
 #include "detailed/DetailedMgr.h"
 #include "PreMgr.h"
-
+#include  <time.h>
 using namespace std;
 
 int main(int argc, char* argv[]){
+    //time
+    time_t start, end;
+    time(&start);
+
     ifstream finST, fin;
     ofstream fout;
     finST.open(argv[1], ifstream::in);
@@ -92,20 +96,36 @@ int main(int argc, char* argv[]){
     DetailedMgr detailedMgr(db, plot, 2 * db.VIA16D8A24()->padRadius(0));
     // // detailedMgr.eigenTest();
     detailedMgr.initGridMap();
+    detailedMgr.initGridMap();
     // detailedMgr.check();
     // detailedMgr.plotGraph();
     // // // detailedMgr.plotGridMap();
-    detailedMgr.naiveAStar();
+    //detailedMgr.naiveAStar();
     // detailedMgr.check();
     // detailedMgr.plotGridMap();
-    detailedMgr.synchronize();
-    detailedMgr.check();
+    //detailedMgr.synchronize();
+    //detailedMgr.check();
     // detailedMgr.addViaGrid();
     // detailedMgr.check();
     detailedMgr.buildMtx(1);
-    detailedMgr.check();
+    //detailedMgr.check();
+    //detailedMgr.SPROUT();
     // detailedMgr.plotGridMapVoltage();
     detailedMgr.plotGridMapCurrent();
+    //detailedMgr.plotGridMap();
+
+    time(&end);
+    double time_used = double(end - start);
+    int hour = 0, min = 0;
+    if(time_used >= 60){
+        min = time_used/60;
+        time_used = time_used - min*60;
+    }
+    if(min >= 60){
+        hour = min/60;
+        min = min%60;
+    }
+    cout << "Time : " << hour << " hours " << min <<" mins "<< fixed << setprecision(5) << time_used << " sec " << endl; 
 
     // for (size_t layId = 0; layId < db.numLayers(); ++ layId) {
     //     for (size_t netId = 0; netId < db.numNets(); ++netId){

@@ -538,12 +538,102 @@ void DetailedMgr::naiveAStar() {
     // cerr << "overlapArea = " << overlapArea << endl;
 }
 
+bool DetailedMgr::SingleNetAStar(size_t netId, size_t layId) {
+
+    bool CanRoute = false;
+    
+    Net* net = _db.vNet(netId);
+    // clearNet(layId, netId);
+    Grid* grid = _vSGrid[netId][layId];
+
+    // unoccupied the outer rim grids
+    for (size_t nbrId = 0; nbrId < grid->numNeighbors(); ++ nbrId) {
+        grid->vNeighbor(nbrId)->setOccupied(false);
+    }
+    for (size_t tPortId = 0; tPortId < _db.vNet(netId)->numTPorts(); ++ tPortId) {
+        Grid* tGrid = _vTGrid[netId][layId][tPortId];
+        for (size_t nbrId = 0; nbrId < tGrid->numNeighbors(); ++ nbrId) {
+            tGrid->vNeighbor(nbrId)->setOccupied(false);
+        }
+    }
+    for (size_t tPortId = 0; tPortId < net->numTPorts(); ++ tPortId) {
+        AStarRouter sRouter(_vGrid[layId], _vSGrid[netId][layId], _vTGrid[netId][layId][tPortId], _gridWidth);
+        if (sRouter.BFS()) {
+            CanRoute = true;
+            for (size_t pGridId = 0; pGridId < sRouter.numPath(); ++ pGridId) {
+                Grid* grid = sRouter.path(pGridId);
+                if (grid->netId() == -1) {  // avoid pushing the same grid to _vNetGrid again
+                    grid->setNetId(netId);
+                    // grid->setOccupied(true);
+                    if (grid != _vSGrid[netId][layId] && grid != _vTGrid[netId][layId][tPortId]) {
+                        _vNetGrid[netId][layId].push_back(grid);
+                    }
+                }
+            }
+        } else {
+            CanRoute = false;
+            cerr << "BFS fail: lay" << layId << " net" << netId << " s->t" << tPortId << endl;
+        }
+        
+        for (size_t tPortId1 = tPortId+1; tPortId1 < net->numTPorts(); ++ tPortId1) {
+            AStarRouter tRouter(_vGrid[layId], _vTGrid[netId][layId][tPortId], _vTGrid[netId][layId][tPortId1], _gridWidth);
+            if (tRouter.BFS()) {
+                CanRoute = true;
+                for (size_t pGridId = 0; pGridId < tRouter.numPath(); ++ pGridId) {
+                    Grid* grid = tRouter.path(pGridId);
+                    if (grid->netId() == -1) {
+                        grid->setNetId(netId);
+                        // grid->setOccupied(true);
+                        if (grid != _vTGrid[netId][layId][tPortId] && grid != _vTGrid[netId][layId][tPortId1]) {
+                            _vNetGrid[netId][layId].push_back(grid);
+                        }
+                    }
+                }
+            } 
+            else {
+                CanRoute = false;
+                cerr << "BFS fail: lay" << layId << " net" << netId << " t" << tPortId << "->t" << tPortId1 << endl;
+            }
+            
+        }
+    }
+
+    // occupied the net grids
+    for (size_t netGridId = 0; netGridId < _vNetGrid[netId][layId].size(); ++ netGridId) {
+        _vNetGrid[netId][layId][netGridId]->setOccupied(true);
+    }
+    // occupied the outer rim grids
+    for (size_t nbrId = 0; nbrId < grid->numNeighbors(); ++ nbrId) {
+        grid->vNeighbor(nbrId)->setOccupied(true);
+    }
+    for (size_t tPortId = 0; tPortId < _db.vNet(netId)->numTPorts(); ++ tPortId) {
+        Grid* tGrid = _vTGrid[netId][layId][tPortId];
+        for (size_t nbrId = 0; nbrId < tGrid->numNeighbors(); ++ nbrId) {
+            tGrid->vNeighbor(nbrId)->setOccupied(true);
+        }
+    }
+
+    return CanRoute;  
+}
+
 void DetailedMgr::clearNet(size_t layId, size_t netId) {
     // for (size_t gridId = 0; gridId < _vNetGrid[netId][layId].size(); ++ gridId) {
     //     _vNetGrid[netId][layId][gridId]->removeNet(netId);
     //     _vNetGrid[netId][layId][gridId]->decCongestCur();
     // }
     // _vNetGrid[netId][layId].clear();
+}
+
+void DetailedMgr::ResetAllNets(){
+    for(size_t netId = 0; netId < _vNetGrid.size();++ netId ){
+        for(size_t layId = 0; layId <  _vNetGrid[netId].size() ; ++ layId){
+            for (size_t gridId = 0; gridId < _vNetGrid[netId][layId].size(); ++ gridId) {
+                _vNetGrid[netId][layId][gridId]->setNetId(-1);
+                _vNetGrid[netId][layId][gridId]->setOccupied(0);
+            }
+            _vNetGrid[netId][layId].clear();
+        }
+    }
 }
 
 void DetailedMgr::eigenTest() {
@@ -664,322 +754,6 @@ void DetailedMgr::addViaGrid() {
         }
     }
 }
-
-// void DetailedMgr::buildSingleNetMtx(size_t netId) {
-//     cerr << "Single Net PEEC Simulation start..." << endl;
-
-//     auto gridEnclose = [&] (Grid* grid, double x, double y) -> bool {
-//         double gridLX = grid->xId() * _gridWidth;
-//         double gridUX = (grid->xId()+1) * _gridWidth;
-//         double gridLY = grid->yId() * _gridWidth;
-//         double gridUY = (grid->yId()+1) * _gridWidth;
-//         // to avoid a via enclosed by multiple grids, set ">=" but "<" only
-//         return ((x >= gridLX) && (x < gridUX) && (y >= gridLY) && (y < gridUY));
-//     };
-    
-//     //wait for the answer
-//     size_t numNode = 0;
-//     map< tuple<size_t, size_t, size_t>, size_t > getID; // i = getID[layID, xId, yId] = ith node
-//     for (size_t layId = 0; layId < _vNetGrid[netId].size(); ++ layId) {
-//         for (size_t gridId = 0; gridId < _vNetGrid[netId][layId].size(); gridId ++) {
-//             getID[make_tuple(layId, _vNetGrid[netId][layId][gridId]->xId(), _vNetGrid[netId][layId][gridId]->yId())] = numNode;
-//             numNode++;
-//         }
-//     }
-
-//     // initialize matrix and vector
-//     Eigen::SparseMatrix<double, Eigen::RowMajor> Y(numNode, numNode);
-//     Eigen::VectorXd I(numNode);
-//     Eigen::VectorXd V(numNode);
-//     vector< Eigen::Triplet<double> > vTplY;
-//     vTplY.reserve(6 * numNode);
-//     for (size_t i = 0; i < numNode; ++ i) {
-//         I[i] = 0;
-//         V[i] = 0;
-//     }
-
-//     // // initialize
-//     // vector< vector<double > > mtx;
-//     // // numNode += (_db.vNet(netId)->numTPorts() + 1) * _db.numLayers();    // add the source/target via nodes on each layer
-//     // for(int i=0; i<numNode; i++) {
-//     //     mtx.push_back(vector<double>());
-//     //     for(int j=0; j<numNode; j++)
-//     //         mtx[i].push_back(0.0);
-//     // }
-//     assert(_vNetGrid[netId].size() == _db.numLayers());
-//     for (size_t layId = 0; layId < _vNetGrid[netId].size(); ++ layId) {
-//         int numSVias = 0;
-//         vector<int> numTVias(_db.vNet(netId)->numTPorts(), 0);
-//         for (size_t gridId = 0; gridId < _vNetGrid[netId][layId].size(); gridId ++) {
-//             Grid* grid_i = _vNetGrid[netId][layId][gridId];
-//             // cerr << "grid = (" << grid_i->xId() << " " << grid_i->yId() << ")" << endl;
-//             size_t node_id = getID[make_tuple(layId, grid_i->xId(), grid_i->yId())];
-//         //    printf("x: %-4d, y: %-4d, lay: %-4d, ID: %-4d\n", i->xId(), i->yId(), layId, getID[make_tuple(layId, i->xId(), i->yId())]);
-        
-//             double g2g_condutance = _db.vMetalLayer(layId)->conductivity() * _db.vMetalLayer(layId)->thickness() * 1E-3;
-//             double via_condutance_up, via_condutance_down;
-//             if (layId > 0) {
-//                 via_condutance_down = (_db.vMetalLayer(0)->conductivity() * _db.VIA16D8A24()->metalArea() * 1E-6) / (1E-3 * (0.5*_db.vMetalLayer(layId-1)->thickness()+ _db.vMediumLayer(layId)->thickness()+0.5* _db.vMetalLayer(layId)->thickness()));
-//             }
-//             if (layId < _db.numLayers() - 1) {
-//                 via_condutance_up = (_db.vMetalLayer(0)->conductivity() * _db.VIA16D8A24()->metalArea() * 1E-6) / (1E-3 * (0.5*_db.vMetalLayer(layId)->thickness()+ _db.vMediumLayer(layId+1)->thickness()+0.5* _db.vMetalLayer(layId+1)->thickness()));
-//             }
-//             double small_conductance = 1.0;
-//             // if (gridId == 0) {
-//             //     cerr << "layer" << layId << ": g2g_conductance = " << g2g_condutance << ", via_conductance_up = " << via_condutance_up;
-//             //     cerr << ", via_conductance_down = " << via_condutance_down << endl;
-//             // }
-
-//             // check left
-//             if(grid_i->xId() > 0 && _vGrid[layId][grid_i->xId()-1][grid_i->yId()]->hasNet(netId)) {
-//                 // mtx[node_id][node_id] += g2g_condutance;
-//                 // mtx[node_id][getID[make_tuple(layId, grid_i->xId()-1, grid_i->yId())]] -= g2g_condutance;
-//                 vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, g2g_condutance));
-//                 vTplY.push_back(Eigen::Triplet<double>(node_id, getID[make_tuple(layId, grid_i->xId()-1, grid_i->yId())], -g2g_condutance));
-//             }
-
-//             // check right
-//             if(grid_i->xId() < _numXs-1 && _vGrid[layId][grid_i->xId()+1][grid_i->yId()]->hasNet(netId)) {
-//                 // mtx[node_id][node_id] += g2g_condutance;
-//                 // mtx[node_id][getID[make_tuple(layId, grid_i->xId()+1, grid_i->yId())]] -= g2g_condutance;
-//                 vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, g2g_condutance));
-//                 vTplY.push_back(Eigen::Triplet<double>(node_id, getID[make_tuple(layId, grid_i->xId()+1, grid_i->yId())], -g2g_condutance));
-//             }
-            
-//             // check down
-//             if(grid_i->yId() > 0 && _vGrid[layId][grid_i->xId()][grid_i->yId()-1]->hasNet(netId)) {
-//                 // mtx[node_id][node_id] += g2g_condutance;
-//                 // mtx[node_id][getID[make_tuple(layId, grid_i->xId(), grid_i->yId()-1)]] -= g2g_condutance;
-//                 vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, g2g_condutance));
-//                 vTplY.push_back(Eigen::Triplet<double>(node_id, getID[make_tuple(layId, grid_i->xId(), grid_i->yId()-1)], -g2g_condutance));
-//             }
-            
-//             // check up
-//             if(grid_i->yId() < _numYs-1 && _vGrid[layId][grid_i->xId()][grid_i->yId()+1]->hasNet(netId)) {
-//                 // mtx[node_id][node_id] += g2g_condutance;
-//                 // mtx[node_id][getID[make_tuple(layId, grid_i->xId(), grid_i->yId()+1)]] -= g2g_condutance;
-//                 vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, g2g_condutance));
-//                 vTplY.push_back(Eigen::Triplet<double>(node_id, getID[make_tuple(layId, grid_i->xId(), grid_i->yId()+1)], -g2g_condutance));
-//             }
-
-//             // // check top layer
-//             // if(layId > 0 && _vGrid[layId-1][grid_i->xId()][grid_i->yId()]->hasNet(netId)) {
-//             //     mtx[node_id][node_id] += via_condutance;
-//             //     mtx[node_id][getID[make_tuple(layId-1, grid_i->xId(), grid_i->yId())]] -= via_condutance;
-//             // }
-
-//             // // check bottom layer
-//             // if(layId < _db.numLayers()-1 && _vGrid[layId+1][grid_i->xId()][grid_i->yId()]->hasNet(netId)) {
-//             //     mtx[node_id][node_id] += via_condutance;
-//             //     mtx[node_id][getID[make_tuple(layId+1, grid_i->xId(), grid_i->yId())]] -= via_condutance;
-//             // }
-
-//             for (size_t sViaId = 0; sViaId < _db.vNet(netId)->sourceViaCstr()->numVias(); ++ sViaId) {
-//                 double sX = _db.vNet(netId)->sourceViaCstr()->vVia(sViaId)->x();
-//                 double sY = _db.vNet(netId)->sourceViaCstr()->vVia(sViaId)->y();
-//                 if (gridEnclose(grid_i, sX, sY)) {
-//                     numSVias ++;
-//                     // cerr << "Enclose: net" << netId << " layer" << layId << " source, grid = (" << grid_i->xId() << ", " << grid_i->yId() << ")" << endl; 
-//                     if (layId > 0) {
-//                         // mtx[node_id][node_id] += via_condutance;
-//                         // mtx[node_id][getID[make_tuple(layId-1, grid_i->xId(), grid_i->yId())]] -= via_condutance;
-//                         vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, via_condutance_down));
-//                         vTplY.push_back(Eigen::Triplet<double>(node_id, getID[make_tuple(layId-1, grid_i->xId(), grid_i->yId())], -via_condutance_down));
-//                     } else {
-//                         // if (netId != 1) {
-//                         vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, via_condutance_up));
-//                         I(node_id) = _db.vNet(netId)->sourcePort()->voltage() * via_condutance_up;
-//                         // }
-//                         // cerr << "layer" << layId << " node" << node_id;
-//                         // cerr << ": sVolt = " << _db.vNet(netId)->sourcePort()->voltage();
-//                         // cerr << ", via_conductance_up = " << via_condutance_up;
-//                         // cerr << ", I" << node_id << " = " << I(node_id) << endl;
-//                     }
-//                     if (layId < _db.numLayers()-1) {
-//                         // mtx[node_id][node_id] += via_condutance;
-//                         // mtx[node_id][getID[make_tuple(layId+1, grid_i->xId(), grid_i->yId())]] -= via_condutance;
-//                         vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, via_condutance_up));
-//                         vTplY.push_back(Eigen::Triplet<double>(node_id, getID[make_tuple(layId+1, grid_i->xId(), grid_i->yId())], -via_condutance_up));
-//                     }
-//                 }
-//             }
-//             for (size_t tPortId = 0; tPortId < _db.vNet(netId)->numTPorts(); ++ tPortId) {
-//                 for (size_t tViaId = 0; tViaId < _db.vNet(netId)->vTargetViaCstr(tPortId)->numVias(); ++ tViaId) {
-//                     double tX = _db.vNet(netId)->vTargetViaCstr(tPortId)->vVia(tViaId)->x();
-//                     double tY = _db.vNet(netId)->vTargetViaCstr(tPortId)->vVia(tViaId)->y();
-//                     if (gridEnclose(grid_i, tX, tY)) {
-//                         numTVias[tPortId] ++;
-//                         if (layId > 0) {
-//                             // mtx[node_id][node_id] += via_condutance;
-//                             // mtx[node_id][getID[make_tuple(layId-1, grid_i->xId(), grid_i->yId())]] -= via_condutance;
-//                             vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, via_condutance_down));
-//                             vTplY.push_back(Eigen::Triplet<double>(node_id, getID[make_tuple(layId-1, grid_i->xId(), grid_i->yId())], -via_condutance_down));
-//                         } else {
-//                             double loadConductance = _db.vNet(netId)->targetPort(tPortId)->current() / (_db.vNet(netId)->targetPort(tPortId)->voltage() * _db.vNet(netId)->targetPort(tPortId)->viaCluster()->numVias());
-//                             //  * _db.vNet(netId)->targetPort(tPortId)->viaCluster()->numVias()
-//                             // if (netId != 1) {
-//                             vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, 1.0/(1.0/via_condutance_up + 1.0/loadConductance)));
-//                             // } else {
-//                             //     vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, 1.0/(1.0/via_condutance_down + 1.0/loadConductance)));
-//                             // }
-//                             // cerr << "layer" << layId << " node" << node_id;
-//                             // cerr << ": tPort" << tPortId ;
-//                             // cerr << ", total conductance = " << 1.0/(1.0/via_condutance_up + 1.0/loadConductance) << endl;
-//                             // << ": via_conductance = " << via_condutance_up << ", loadConductance = " << loadConductance;
-//                         }
-//                         if (layId < _db.numLayers()-1) {
-//                             // mtx[node_id][node_id] += via_condutance;
-//                             // mtx[node_id][getID[make_tuple(layId+1, grid_i->xId(), grid_i->yId())]] -= via_condutance;
-//                             vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, via_condutance_up));
-//                             vTplY.push_back(Eigen::Triplet<double>(node_id, getID[make_tuple(layId+1, grid_i->xId(), grid_i->yId())], -via_condutance_up));
-//                         } 
-//                     }
-//                 }
-//             }
-//         }
-//         // Port* sPort = _db.vNet(netId)->sourcePort();
-//         // int realNumSVias = sPort->viaCluster()->numVias();
-//         // cerr << "layer" << layId << ": numSVias = " << numSVias << ", real numSVias = " << realNumSVias << endl;
-//         // for (size_t tPortId = 0; tPortId < _db.vNet(netId)->numTPorts(); ++ tPortId) {
-//         //     Port* tPort = _db.vNet(netId)->targetPort(tPortId);
-//         //     int realNumTVias = tPort->viaCluster()->numVias();
-//         //     cerr << "layer" << layId << " tPort" << tPortId << ": numTVias = " << numTVias[tPortId] << ", real numTVias = " << realNumTVias << endl;
-//         // }
-//     }
-
-//     // if (netId == 1) {
-//     //     cerr << "net1, I = " << endl;
-//     //     for (size_t i = 0; i < I.size(); ++ i) {
-//     //         if (I[i] > 0) {
-//     //             cerr << "I[" << i << "] = " << I[i] << endl;
-//     //         }
-//     //     }
-//     // }
-
-//     Y.setFromTriplets(vTplY.begin(), vTplY.end());
-//     // Eigen::BiCGSTAB<Eigen::SparseMatrix<double, Eigen::RowMajor>, Eigen::IdentityPreconditioner> solver;
-//     Eigen::ConjugateGradient<Eigen::SparseMatrix<double, Eigen::RowMajor>, Eigen::Upper> solver;
-//     // solver.setMaxIterations(1000000);
-//     // solver.setTolerance(1e-14);
-//     solver.compute(Y);
-//     // V = solver.solveWithGuess(I, V);
-//     V = solver.solve(I);
-//     assert(solver.info() == Eigen::Success);
-
-//     // set voltage of each grid
-//     for (size_t layId = 0; layId < _vNetGrid[netId].size(); ++ layId) {
-//         for (size_t gridId = 0; gridId < _vNetGrid[netId][layId].size(); gridId ++) {
-//             Grid* grid_i = _vNetGrid[netId][layId][gridId];
-//             size_t node_id = getID[make_tuple(layId, grid_i->xId(), grid_i->yId())];
-//             grid_i->setVoltage(netId, V[node_id]);
-//             // assert(grid_i->voltage(netId) <= _db.vNet(netId)->sourcePort()->voltage());
-//         }
-//     }
-
-//     // set current of each grid
-//     for (size_t tPortId = 0; tPortId < _db.vNet(netId)->numTPorts(); ++ tPortId) {
-//         _vTPortCurr[netId][tPortId] = 0.0;
-//     }
-//     assert(_vNetGrid[netId].size() == _db.numLayers());
-//     for (size_t layId = 0; layId < _vNetGrid[netId].size(); ++ layId) {
-//         for (size_t gridId = 0; gridId < _vNetGrid[netId][layId].size(); gridId ++) {
-//             Grid* grid_i = _vNetGrid[netId][layId][gridId];
-//             size_t xId = grid_i->xId();
-//             size_t yId = grid_i->yId();
-//             size_t node_id = getID[make_tuple(layId, grid_i->xId(), grid_i->yId())];
-//             double g2g_condutance = _db.vMetalLayer(layId)->conductivity() * _db.vMetalLayer(layId)->thickness() * 1E-3;
-//             double via_condutance_up, via_condutance_down;
-//             if (layId > 0) {
-//                 via_condutance_down = (_db.vMetalLayer(0)->conductivity() * _db.VIA16D8A24()->metalArea() * 1E-6) / (1E-3 * (0.5*_db.vMetalLayer(layId-1)->thickness()+ _db.vMediumLayer(layId)->thickness()+0.5* _db.vMetalLayer(layId)->thickness()));
-//             }
-//             if (layId < _db.numLayers() - 1) {
-//                 via_condutance_up = (_db.vMetalLayer(0)->conductivity() * _db.VIA16D8A24()->metalArea() * 1E-6) / (1E-3 * (0.5*_db.vMetalLayer(layId)->thickness()+ _db.vMediumLayer(layId+1)->thickness()+0.5* _db.vMetalLayer(layId+1)->thickness()));
-//             }
-//             if (gridId == 0) {
-//                 // cerr << "layer" << layId << ": g2g_conductance = " << g2g_condutance << ", via_conductance_up = " << via_condutance_up;
-//                 // cerr << ", via_conductance_down = " << via_condutance_down << endl;
-//             }
-//             double small_conductance = 1.0;
-//             double current = 0;
-//             size_t nbrId;
-//             if (legal(xId+1, yId)) {
-//                 if (_vGrid[layId][xId+1][yId]->hasNet(netId)) {
-//                     current += abs(grid_i->voltage(netId) - _vGrid[layId][xId+1][yId]->voltage(netId)) * g2g_condutance;
-//                 }
-//             }
-//             if (legal(xId-1, yId)) {
-//                 if (_vGrid[layId][xId-1][yId]->hasNet(netId)) {
-//                     current += abs(grid_i->voltage(netId) - _vGrid[layId][xId-1][yId]->voltage(netId)) * g2g_condutance;
-//                 }
-//             }
-//             if (legal(xId, yId+1)) {
-//                 if (_vGrid[layId][xId][yId+1]->hasNet(netId)) {
-//                     current += abs(grid_i->voltage(netId) - _vGrid[layId][xId][yId+1]->voltage(netId)) * g2g_condutance;
-//                 }
-//             }
-//             if (legal(xId, yId-1)) {
-//                 if (_vGrid[layId][xId][yId-1]->hasNet(netId)) {
-//                     current += abs(grid_i->voltage(netId) - _vGrid[layId][xId][yId-1]->voltage(netId)) * g2g_condutance;
-//                 }
-//             }
-//             // via current
-//             for (size_t sViaId = 0; sViaId < _db.vNet(netId)->sourceViaCstr()->numVias(); ++ sViaId) {
-//                 double sX = _db.vNet(netId)->sourceViaCstr()->vVia(sViaId)->x();
-//                 double sY = _db.vNet(netId)->sourceViaCstr()->vVia(sViaId)->y();
-//                 if (gridEnclose(grid_i, sX, sY)) {
-//                     // cerr << "Enclose: net" << netId << " layer" << layId << " source, grid = (" << grid_i->xId() << ", " << grid_i->yId() << ")" << endl; 
-//                     if (layId > 0) {
-//                         current += abs(grid_i->voltage(netId) - _vGrid[layId-1][xId][yId]->voltage(netId)) * via_condutance_down;
-//                     } else {
-//                         current += abs(grid_i->voltage(netId) - _db.vNet(netId)->sourcePort()->voltage()) * via_condutance_up;
-//                     }
-//                     if (layId < _db.numLayers()-1) {
-//                         current += abs(grid_i->voltage(netId) - _vGrid[layId+1][xId][yId]->voltage(netId)) * via_condutance_up;
-//                     }
-//                 }
-//             }
-//             for (size_t tPortId = 0; tPortId < _db.vNet(netId)->numTPorts(); ++ tPortId) {
-//                 // double tPortCurr = 0;
-//                 double loadConductance = _db.vNet(netId)->targetPort(tPortId)->current() / (_db.vNet(netId)->targetPort(tPortId)->voltage()* _db.vNet(netId)->targetPort(tPortId)->viaCluster()->numVias());
-//                 for (size_t tViaId = 0; tViaId < _db.vNet(netId)->vTargetViaCstr(tPortId)->numVias(); ++ tViaId) {
-//                     double tX = _db.vNet(netId)->vTargetViaCstr(tPortId)->vVia(tViaId)->x();
-//                     double tY = _db.vNet(netId)->vTargetViaCstr(tPortId)->vVia(tViaId)->y();
-//                     if (gridEnclose(grid_i, tX, tY)) {
-//                         if (layId > 0) {
-//                             current += abs(grid_i->voltage(netId) - _vGrid[layId-1][xId][yId]->voltage(netId)) * via_condutance_down;
-//                         } else {
-//                             current += abs(grid_i->voltage(netId)) /(1.0/via_condutance_up + 1.0/loadConductance);
-//                             _vTPortCurr[netId][tPortId] += abs(grid_i->voltage(netId)) /(1.0/via_condutance_up + 1.0/loadConductance);
-//                             //cerr << "net" << netId << ", tPort" << tPortId << ": voltage = " << grid_i->voltage(netId);
-//                             //cerr << ", current = " << abs(grid_i->voltage(netId)) /(1.0/via_condutance_up + 1.0/loadConductance) << endl;
-//                         }
-//                         if (layId < _db.numLayers()-1) {
-//                             current += abs(grid_i->voltage(netId) - _vGrid[layId+1][xId][yId]->voltage(netId)) * via_condutance_up;
-//                         } 
-//                     }
-//                 }
-//                 // _vTPortCurr[netId][tPortId] += tPortCurr;
-//                 // _vTPortCurr[netId].push_back(tPortCurr);
-//                 // _vTPortVolt[netId].push_back(tPortCurr / loadConductance);
-//                 // cerr << "tPortCurr = " << tPortCurr << ", tPortVolt = " << _vTPortVolt[netId][tPortId] << endl;
-//             }
-//             grid_i->setCurrent(netId, current * 0.5);
-//             // cerr << "gridCurrent = " << current * 0.5 << endl;
-//         }
-//     }
-//     // for(int i=0; i<20; i++) {
-//     //     for(int j=0; j<20; j++)
-//     //         printf("%4.1f ", mtx[i][j]);
-//     //     printf("\n");
-//     // }
-   
-//     for (size_t tPortId = 0; tPortId < _db.vNet(netId)->numTPorts(); ++ tPortId) {
-//         double loadResistance = _db.vNet(netId)->targetPort(tPortId)->voltage() / _db.vNet(netId)->targetPort(tPortId)->current();
-//         _vTPortVolt[netId][tPortId] = _vTPortCurr[netId][tPortId] * loadResistance;
-//         cerr << "net" << netId << " tPort" << tPortId << ": current = " << _vTPortCurr[netId][tPortId];
-//         cerr << ", voltage = " << _vTPortVolt[netId][tPortId] << endl;
-//     }
-// }
 
 void DetailedMgr::buildMtx(size_t numLayers) {
     // https://i.imgur.com/rIwlXJQ.png
@@ -1126,10 +900,10 @@ void DetailedMgr::buildMtx(size_t numLayers) {
                         if (gridEnclose(grid_i, sX, sY)) {
                             vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, ball_conductance));
                             I(node_id) = _db.vNet(netId)->sourcePort()->voltage() * ball_conductance;
-                            cerr << "layer" << layId << " node" << node_id;
-                            cerr << ": sVolt = " << _db.vNet(netId)->sourcePort()->voltage();
-                            cerr << ", ball_conductance = " << ball_conductance;
-                            cerr << ", I" << node_id << " = " << I(node_id) << endl;
+                            //cerr << "layer" << layId << " node" << node_id;
+                            //cerr << ": sVolt = " << _db.vNet(netId)->sourcePort()->voltage();
+                            //cerr << ", ball_conductance = " << ball_conductance;
+                            //cerr << ", I" << node_id << " = " << I(node_id) << endl;
                         }
                     }
                 }
@@ -1166,9 +940,9 @@ void DetailedMgr::buildMtx(size_t numLayers) {
                             if (gridEnclose(grid_i, tX, tY)) {
                                 double loadConductance = _db.vNet(netId)->targetPort(tPortId)->current() / (_db.vNet(netId)->targetPort(tPortId)->voltage() * _db.numClusteredNodes(netId, tPortId+1));
                                 vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, 1.0/(1.0/ball_conductance + 1.0/loadConductance)));
-                                cerr << "layer" << layId << " node" << node_id;
-                                cerr << ": tPort" << tPortId ;
-                                cerr << ", total conductance = " << 1.0/(1.0/ball_conductance + 1.0/loadConductance) << endl;
+                                //cerr << "layer" << layId << " node" << node_id;
+                                //cerr << ": tPort" << tPortId ;
+                                //cerr << ", total conductance = " << 1.0/(1.0/ball_conductance + 1.0/loadConductance) << endl;
                                 // << ": via_conductance = " << via_condutance_up << ", loadConductance = " << loadConductance;
                             }
                         }
@@ -1222,8 +996,8 @@ void DetailedMgr::buildMtx(size_t numLayers) {
                 }
                 double ball_conductance = (_db.vMetalLayer(0)->conductivity() * _db.VIA16D8A24()->metalArea() * 1E-6) / (1E-3 * (0.5*_db.vMetalLayer(0)->thickness()+ _db.vMediumLayer(1)->thickness()+0.5* _db.vMetalLayer(1)->thickness()));
                 if (gridId == 0) {
-                    cerr << "layer" << layId << ": g2g_conductance = " << g2g_condutance << ", via_conductance_up = " << via_condutance_up;
-                    cerr << ", via_conductance_down = " << via_condutance_down << endl;
+                    //cerr << "layer" << layId << ": g2g_conductance = " << g2g_condutance << ", via_conductance_up = " << via_condutance_up;
+                    //cerr << ", via_conductance_down = " << via_condutance_down << endl;
                 }
                 double current = 0;
                 size_t nbrId;
@@ -1309,8 +1083,8 @@ void DetailedMgr::buildMtx(size_t numLayers) {
                                 // vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, 1.0/(1.0/ball_conductance + 1.0/loadConductance)));
                                 current += abs(grid_i->voltage()) /(1.0/ball_conductance + 1.0/loadConductance);
                                 _vTPortCurr[netId][tPortId] += abs(grid_i->voltage()) /(1.0/ball_conductance + 1.0/loadConductance);
-                                cerr << "net" << netId << ", tPort" << tPortId << ": voltage = " << grid_i->voltage();
-                                cerr << ", current = " << abs(grid_i->voltage()) /(1.0/ball_conductance + 1.0/loadConductance) << endl;
+                                //cerr << "net" << netId << ", tPort" << tPortId << ": voltage = " << grid_i->voltage();
+                                //cerr << ", current = " << abs(grid_i->voltage()) /(1.0/ball_conductance + 1.0/loadConductance) << endl;
                             }
                         }
                     }
@@ -1357,6 +1131,384 @@ void DetailedMgr::buildMtx(size_t numLayers) {
             cerr << ", voltage = " << _vTPortVolt[netId][tPortId] << endl;
         }
     }
+}
+
+void DetailedMgr::buildSingleNetMtx(size_t netId , size_t numLayers) {
+    // https://i.imgur.com/rIwlXJQ.png
+    // return an impedance matrix for each net
+    // number of nodes: \sum_{layId=0}^{_vNetGrid[netID].size()} _vNetGrid[netID][layId].size()
+
+    auto gridEnclose = [&] (Grid* grid, double x, double y) -> bool {
+        double gridLX = grid->xId() * _gridWidth;
+        double gridUX = (grid->xId()+1) * _gridWidth;
+        double gridLY = grid->yId() * _gridWidth;
+        double gridUY = (grid->yId()+1) * _gridWidth;
+        // to avoid a via enclosed by multiple grids, set ">=" but "<" only
+        return ((x >= gridLX) && (x < gridUX) && (y >= gridLY) && (y < gridUY));
+    };
+
+    
+    printf("netID: %d\n", netId);
+    
+    size_t numNode = 0;
+    map< tuple<size_t, size_t, size_t>, size_t > getID; // i = getID[layID, xId, yId] = ith node
+    // for (size_t layId = 0; layId < _vNetGrid[netId].size(); ++ layId) {
+    for (size_t layId = 0; layId < numLayers; ++layId) {
+        for (size_t gridId = 0; gridId < _vNetGrid[netId][layId].size(); gridId ++) {
+            getID[make_tuple(layId, _vNetGrid[netId][layId][gridId]->xId(), _vNetGrid[netId][layId][gridId]->yId())] = numNode;
+            numNode++;
+        }
+    }
+    printf("numNode: %d\n", numNode);
+
+    // initialize matrix and vector
+    Eigen::SparseMatrix<double, Eigen::RowMajor> Y(numNode, numNode);
+    Eigen::VectorXd I(numNode);
+    Eigen::VectorXd V(numNode);
+    vector< Eigen::Triplet<double> > vTplY;
+    vTplY.reserve(6 * numNode);
+    for (size_t i = 0; i < numNode; ++ i) {
+        I[i] = 0;
+        V[i] = 0;
+    }
+
+    // // initialize
+    // vector< vector<double > > mtx;
+    // // numNode += (_db.vNet(netId)->numTPorts() + 1) * _db.numLayers();    // add the source/target via nodes on each layer
+    // for(int i=0; i<numNode; i++) {
+    //     mtx.push_back(vector<double>());
+    //     for(int j=0; j<numNode; j++)
+    //         mtx[i].push_back(0.0);
+    // }
+    // assert(_vNetGrid[netId].size() == _db.numLayers());
+    // for (size_t layId = 0; layId < _vNetGrid[netId].size(); ++ layId) {
+    for (size_t layId = 0; layId < numLayers; ++layId) {
+        for (size_t gridId = 0; gridId < _vNetGrid[netId][layId].size(); gridId ++) {
+            Grid* grid_i = _vNetGrid[netId][layId][gridId];
+            assert(grid_i->netId() == netId);
+            // cerr << "grid = (" << grid_i->xId() << " " << grid_i->yId() << ")" << endl;
+            size_t node_id = getID[make_tuple(layId, grid_i->xId(), grid_i->yId())];
+        //    printf("x: %-4d, y: %-4d, lay: %-4d, ID: %-4d\n", i->xId(), i->yId(), layId, getID[make_tuple(layId, i->xId(), i->yId())]);
+        
+            double g2g_condutance = _db.vMetalLayer(layId)->conductivity() * _db.vMetalLayer(layId)->thickness() * 1E-3;
+            // double via_condutance = (_db.vMetalLayer(0)->conductivity() * _db.vVia(0)->shape()->area() * 1E-6) / (_db.vMediumLayer(0)->thickness() * 1E-3);
+            double via_condutance_up, via_condutance_down;
+            if (layId > 0) {
+                via_condutance_down = (_db.vMetalLayer(0)->conductivity() * _db.VIA16D8A24()->metalArea() * 1E-6) / (1E-3 * (0.5*_db.vMetalLayer(layId-1)->thickness()+ _db.vMediumLayer(layId)->thickness()+0.5* _db.vMetalLayer(layId)->thickness()));
+            }
+            // if (layId < _db.numLayers() - 1) {
+            if (layId < numLayers-1) {
+                via_condutance_up = (_db.vMetalLayer(0)->conductivity() * _db.VIA16D8A24()->metalArea() * 1E-6) / (1E-3 * (0.5*_db.vMetalLayer(layId)->thickness()+ _db.vMediumLayer(layId+1)->thickness()+0.5* _db.vMetalLayer(layId+1)->thickness()));
+            }
+            double ball_conductance = (_db.vMetalLayer(0)->conductivity() * _db.VIA16D8A24()->metalArea() * 1E-6) / (1E-3 * (0.5*_db.vMetalLayer(0)->thickness()+ _db.vMediumLayer(1)->thickness()+0.5* _db.vMetalLayer(1)->thickness()));
+            double small_conductance = 1.0;
+
+            // check left
+            if(grid_i->xId() > 0 && _vGrid[layId][grid_i->xId()-1][grid_i->yId()]->netId() == netId) {
+                // mtx[node_id][node_id] += g2g_condutance;
+                // mtx[node_id][getID[make_tuple(layId, grid_i->xId()-1, grid_i->yId())]] -= g2g_condutance;
+                vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, g2g_condutance));
+                vTplY.push_back(Eigen::Triplet<double>(node_id, getID[make_tuple(layId, grid_i->xId()-1, grid_i->yId())], -g2g_condutance));
+            }
+
+            // check right
+            if(grid_i->xId() < _numXs-1 && _vGrid[layId][grid_i->xId()+1][grid_i->yId()]->netId() == netId) {
+                // mtx[node_id][node_id] += g2g_condutance;
+                // mtx[node_id][getID[make_tuple(layId, grid_i->xId()+1, grid_i->yId())]] -= g2g_condutance;
+                vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, g2g_condutance));
+                vTplY.push_back(Eigen::Triplet<double>(node_id, getID[make_tuple(layId, grid_i->xId()+1, grid_i->yId())], -g2g_condutance));
+            }
+            
+            // check down
+            if(grid_i->yId() > 0 && _vGrid[layId][grid_i->xId()][grid_i->yId()-1]->netId() == netId) {
+                // mtx[node_id][node_id] += g2g_condutance;
+                // mtx[node_id][getID[make_tuple(layId, grid_i->xId(), grid_i->yId()-1)]] -= g2g_condutance;
+                vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, g2g_condutance));
+                vTplY.push_back(Eigen::Triplet<double>(node_id, getID[make_tuple(layId, grid_i->xId(), grid_i->yId()-1)], -g2g_condutance));
+            }
+            
+            // check up
+            if(grid_i->yId() < _numYs-1 && _vGrid[layId][grid_i->xId()][grid_i->yId()+1]->netId() == netId) {
+                // mtx[node_id][node_id] += g2g_condutance;
+                // mtx[node_id][getID[make_tuple(layId, grid_i->xId(), grid_i->yId()+1)]] -= g2g_condutance;
+                vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, g2g_condutance));
+                vTplY.push_back(Eigen::Triplet<double>(node_id, getID[make_tuple(layId, grid_i->xId(), grid_i->yId()+1)], -g2g_condutance));
+            }
+
+            // // check top layer
+            // if(layId > 0 && _vGrid[layId-1][grid_i->xId()][grid_i->yId()]->hasNet(netId)) {
+            //     mtx[node_id][node_id] += via_condutance;
+            //     mtx[node_id][getID[make_tuple(layId-1, grid_i->xId(), grid_i->yId())]] -= via_condutance;
+            // }
+
+            // // check bottom layer
+            // if(layId < _db.numLayers()-1 && _vGrid[layId+1][grid_i->xId()][grid_i->yId()]->hasNet(netId)) {
+            //     mtx[node_id][node_id] += via_condutance;
+            //     mtx[node_id][getID[make_tuple(layId+1, grid_i->xId(), grid_i->yId())]] -= via_condutance;
+            // }
+            if (_db.vNet(netId)->sourceViaCstr() != NULL)
+            for (size_t sViaId = 0; sViaId < _db.vNet(netId)->sourceViaCstr()->numVias(); ++ sViaId) {
+                double sX = _db.vNet(netId)->sourceViaCstr()->vVia(sViaId)->x();
+                double sY = _db.vNet(netId)->sourceViaCstr()->vVia(sViaId)->y();
+                if (gridEnclose(grid_i, sX, sY)) {
+                    // cerr << "Enclose: net" << netId << " layer" << layId << " source, grid = (" << grid_i->xId() << ", " << grid_i->yId() << ")" << endl; 
+                    if (layId > 0) {
+                        // mtx[node_id][node_id] += via_condutance;
+                        // mtx[node_id][getID[make_tuple(layId-1, grid_i->xId(), grid_i->yId())]] -= via_condutance;
+                        vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, via_condutance_down));
+                        vTplY.push_back(Eigen::Triplet<double>(node_id, getID[make_tuple(layId-1, grid_i->xId(), grid_i->yId())], -via_condutance_down));
+                    } 
+                    // else {
+                    //     vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, via_condutance_up));
+                    //     I(node_id) = _db.vNet(netId)->sourcePort()->voltage() * via_condutance_up;
+                    // }
+                    // if (layId < _db.numLayers()-1) {
+                    if (layId < numLayers-1) {
+                        // mtx[node_id][node_id] += via_condutance;
+                        // mtx[node_id][getID[make_tuple(layId+1, grid_i->xId(), grid_i->yId())]] -= via_condutance;
+                        vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, via_condutance_up));
+                        vTplY.push_back(Eigen::Triplet<double>(node_id, getID[make_tuple(layId+1, grid_i->xId(), grid_i->yId())], -via_condutance_up));
+                    }
+                }
+            }
+            if (layId == 0) {
+                for (size_t sNodeId = 0; sNodeId < _db.numClusteredNodes(netId, 0); ++ sNodeId) {
+                    double sX = _db.vClusteredNode(netId, 0, sNodeId)->node()->ctrX();
+                    double sY = _db.vClusteredNode(netId, 0, sNodeId)->node()->ctrY();
+                    if (gridEnclose(grid_i, sX, sY)) {
+                        vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, ball_conductance));
+                        I(node_id) = _db.vNet(netId)->sourcePort()->voltage() * ball_conductance;
+                        //cerr << "layer" << layId << " node" << node_id;
+                        //cerr << ": sVolt = " << _db.vNet(netId)->sourcePort()->voltage();
+                        //cerr << ", ball_conductance = " << ball_conductance;
+                        //cerr << ", I" << node_id << " = " << I(node_id) << endl;
+                    }
+                }
+            }
+            for (size_t tPortId = 0; tPortId < _db.vNet(netId)->numTPorts(); ++ tPortId) {
+                if (_db.vNet(netId)->vTargetViaCstr(tPortId) != NULL)
+                for (size_t tViaId = 0; tViaId < _db.vNet(netId)->vTargetViaCstr(tPortId)->numVias(); ++ tViaId) {
+                    double tX = _db.vNet(netId)->vTargetViaCstr(tPortId)->vVia(tViaId)->x();
+                    double tY = _db.vNet(netId)->vTargetViaCstr(tPortId)->vVia(tViaId)->y();
+                    if (gridEnclose(grid_i, tX, tY)) {
+                        // cerr << "Enclose: net" << netId << " layer" << layId << " target" << tPortId << ", grid = (" << grid_i->xId() << ", " << grid_i->yId() << ")" << endl; 
+                        if (layId > 0) {
+                            // mtx[node_id][node_id] += via_condutance;
+                            // mtx[node_id][getID[make_tuple(layId-1, grid_i->xId(), grid_i->yId())]] -= via_condutance;
+                            vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, via_condutance_down));
+                            vTplY.push_back(Eigen::Triplet<double>(node_id, getID[make_tuple(layId-1, grid_i->xId(), grid_i->yId())], -via_condutance_down));
+                        } 
+                        // else {
+                        //     double loadConductance = _db.vNet(netId)->targetPort(tPortId)->current() / (_db.vNet(netId)->targetPort(tPortId)->voltage() * _db.vNet(netId)->targetPort(tPortId)->viaCluster()->numVias());
+                        //     vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, 1.0/(1.0/via_condutance_up + 1.0/loadConductance)));
+                        // }
+                        // if (layId < _db.numLayers()-1) {
+                        if (layId < numLayers-1) {
+                            // mtx[node_id][node_id] += via_condutance;
+                            // mtx[node_id][getID[make_tuple(layId+1, grid_i->xId(), grid_i->yId())]] -= via_condutance;
+                            vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, via_condutance_up));
+                            vTplY.push_back(Eigen::Triplet<double>(node_id, getID[make_tuple(layId+1, grid_i->xId(), grid_i->yId())], -via_condutance_up));
+                        } 
+                    }
+                }
+                if (layId == 0) {
+                    for (size_t tNodeId = 0; tNodeId < _db.numClusteredNodes(netId, tPortId+1); ++ tNodeId) {
+                        double tX = _db.vClusteredNode(netId, tPortId+1, tNodeId)->node()->ctrX();
+                        double tY = _db.vClusteredNode(netId, tPortId+1, tNodeId)->node()->ctrY();
+                        if (gridEnclose(grid_i, tX, tY)) {
+                            double loadConductance = _db.vNet(netId)->targetPort(tPortId)->current() / (_db.vNet(netId)->targetPort(tPortId)->voltage() * _db.numClusteredNodes(netId, tPortId+1));
+                            vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, 1.0/(1.0/ball_conductance + 1.0/loadConductance)));
+                            //cerr << "layer" << layId << " node" << node_id;
+                            //cerr << ": tPort" << tPortId ;
+                            //cerr << ", total conductance = " << 1.0/(1.0/ball_conductance + 1.0/loadConductance) << endl;
+                            // << ": via_conductance = " << via_condutance_up << ", loadConductance = " << loadConductance;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Y.setFromTriplets(vTplY.begin(), vTplY.end());
+    // Eigen::BiCGSTAB<Eigen::SparseMatrix<double, Eigen::RowMajor>, Eigen::IdentityPreconditioner> solver;
+    Eigen::ConjugateGradient<Eigen::SparseMatrix<double, Eigen::RowMajor>, Eigen::Upper> solver;
+    // Eigen::SimplicialCholeskyLDLT<Eigen::SparseMatrix<double, Eigen::RowMajor>, Eigen::Upper> solver;
+    // solver.setMaxIterations(100000);
+    // solver.setTolerance(1e-15);
+    solver.compute(Y);
+    // V = solver.solveWithGuess(I, V);
+    V = solver.solve(I);
+    assert(solver.info() == Eigen::Success);
+
+    // set voltage of each grid
+    // for (size_t layId = 0; layId < _vNetGrid[netId].size(); ++ layId) {
+    for (size_t layId = 0; layId < numLayers; ++layId) {
+        for (size_t gridId = 0; gridId < _vNetGrid[netId][layId].size(); gridId ++) {
+            Grid* grid_i = _vNetGrid[netId][layId][gridId];
+            size_t node_id = getID[make_tuple(layId, grid_i->xId(), grid_i->yId())];
+            grid_i->setVoltage(V[node_id]);
+            assert(grid_i->voltage() <= _db.vNet(netId)->sourcePort()->voltage());
+        }
+    }
+
+    // set current of each grid
+    for (size_t tPortId = 0; tPortId < _db.vNet(netId)->numTPorts(); ++ tPortId) {
+        _vTPortCurr[netId][tPortId] = 0.0;
+    }
+    // for (size_t layId = 0; layId < _vNetGrid[netId].size(); ++ layId) {
+    for (size_t layId = 0; layId < numLayers; ++layId) {
+        for (size_t gridId = 0; gridId < _vNetGrid[netId][layId].size(); gridId ++) {
+            Grid* grid_i = _vNetGrid[netId][layId][gridId];
+            size_t xId = grid_i->xId();
+            size_t yId = grid_i->yId();
+            size_t node_id = getID[make_tuple(layId, grid_i->xId(), grid_i->yId())];
+            double g2g_condutance = _db.vMetalLayer(layId)->conductivity() * _db.vMetalLayer(layId)->thickness() * 1E-3;
+            // double via_condutance = (_db.vMetalLayer(0)->conductivity() * _db.vVia(0)->shape()->area() * 1E-6) / (_db.vMediumLayer(0)->thickness() * 1E-3);
+            double via_condutance_up, via_condutance_down;
+            if (layId > 0) {
+                via_condutance_down = (_db.vMetalLayer(0)->conductivity() * _db.VIA16D8A24()->metalArea() * 1E-6) / (1E-3 * (0.5*_db.vMetalLayer(layId-1)->thickness()+ _db.vMediumLayer(layId)->thickness()+0.5* _db.vMetalLayer(layId)->thickness()));
+            }
+            // if (layId < _db.numLayers() - 1) {
+            if (layId < numLayers-1) {
+                via_condutance_up = (_db.vMetalLayer(0)->conductivity() * _db.VIA16D8A24()->metalArea() * 1E-6) / (1E-3 * (0.5*_db.vMetalLayer(layId)->thickness()+ _db.vMediumLayer(layId+1)->thickness()+0.5* _db.vMetalLayer(layId+1)->thickness()));
+            }
+            double ball_conductance = (_db.vMetalLayer(0)->conductivity() * _db.VIA16D8A24()->metalArea() * 1E-6) / (1E-3 * (0.5*_db.vMetalLayer(0)->thickness()+ _db.vMediumLayer(1)->thickness()+0.5* _db.vMetalLayer(1)->thickness()));
+            if (gridId == 0) {
+                //cerr << "layer" << layId << ": g2g_conductance = " << g2g_condutance << ", via_conductance_up = " << via_condutance_up;
+                //cerr << ", via_conductance_down = " << via_condutance_down << endl;
+            }
+            double current = 0;
+            size_t nbrId;
+            if (legal(xId+1, yId)) {
+                if (_vGrid[layId][xId+1][yId]->netId() == netId) {
+                    current += abs(grid_i->voltage() - _vGrid[layId][xId+1][yId]->voltage()) * g2g_condutance;
+                }
+            }
+            if (legal(xId-1, yId)) {
+                if (_vGrid[layId][xId-1][yId]->netId() == netId) {
+                    current += abs(grid_i->voltage() - _vGrid[layId][xId-1][yId]->voltage()) * g2g_condutance;
+                }
+            }
+            if (legal(xId, yId+1)) {
+                if (_vGrid[layId][xId][yId+1]->netId() == netId) {
+                    current += abs(grid_i->voltage() - _vGrid[layId][xId][yId+1]->voltage()) * g2g_condutance;
+                }
+            }
+            if (legal(xId, yId-1)) {
+                if (_vGrid[layId][xId][yId-1]->netId() == netId) {
+                    current += abs(grid_i->voltage() - _vGrid[layId][xId][yId-1]->voltage()) * g2g_condutance;
+                }
+            }
+            // via current
+            if (_db.vNet(netId)->sourceViaCstr() != NULL)
+            for (size_t sViaId = 0; sViaId < _db.vNet(netId)->sourceViaCstr()->numVias(); ++ sViaId) {
+                double sX = _db.vNet(netId)->sourceViaCstr()->vVia(sViaId)->x();
+                double sY = _db.vNet(netId)->sourceViaCstr()->vVia(sViaId)->y();
+                if (gridEnclose(grid_i, sX, sY)) {
+                    // cerr << "Enclose: net" << netId << " layer" << layId << " source, grid = (" << grid_i->xId() << ", " << grid_i->yId() << ")" << endl; 
+                    if (layId > 0) {
+                        current += abs(grid_i->voltage() - _vGrid[layId-1][xId][yId]->voltage()) * via_condutance_down;
+                    } 
+                    // else {
+                    //     current += abs(grid_i->voltage() - _db.vNet(netId)->sourcePort()->voltage()) * via_condutance_up;
+                    // }
+                    // if (layId < _db.numLayers()-1) {
+                    if (layId < numLayers-1) {
+                        current += abs(grid_i->voltage() - _vGrid[layId+1][xId][yId]->voltage()) * via_condutance_up;
+                    }
+                }
+            }
+            if (layId == 0) {
+                for (size_t sNodeId = 0; sNodeId < _db.numClusteredNodes(netId, 0); ++ sNodeId) {
+                    double sX = _db.vClusteredNode(netId, 0, sNodeId)->node()->ctrX();
+                    double sY = _db.vClusteredNode(netId, 0, sNodeId)->node()->ctrY();
+                    if (gridEnclose(grid_i, sX, sY)) {
+                        // vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, ball_conductance));
+                        // I(node_id) = _db.vNet(netId)->sourcePort()->voltage() * ball_conductance;
+                        current += abs(grid_i->voltage() - _db.vNet(netId)->sourcePort()->voltage()) * ball_conductance;
+                    }
+                }
+            }
+            for (size_t tPortId = 0; tPortId < _db.vNet(netId)->numTPorts(); ++ tPortId) {
+                // double tPortCurr = 0;
+                // double loadConductance = _db.vNet(netId)->targetPort(tPortId)->current() / (_db.vNet(netId)->targetPort(tPortId)->voltage()* _db.vNet(netId)->targetPort(tPortId)->viaCluster()->numVias());
+                if (_db.vNet(netId)->vTargetViaCstr(tPortId) != NULL)
+                for (size_t tViaId = 0; tViaId < _db.vNet(netId)->vTargetViaCstr(tPortId)->numVias(); ++ tViaId) {
+                    double tX = _db.vNet(netId)->vTargetViaCstr(tPortId)->vVia(tViaId)->x();
+                    double tY = _db.vNet(netId)->vTargetViaCstr(tPortId)->vVia(tViaId)->y();
+                    if (gridEnclose(grid_i, tX, tY)) {
+                        if (layId > 0) {
+                            current += abs(grid_i->voltage() - _vGrid[layId-1][xId][yId]->voltage()) * via_condutance_down;
+                        } 
+                        // else {
+                        //     current += abs(grid_i->voltage()) /(1.0/via_condutance_up + 1.0/loadConductance);
+                        //     _vTPortCurr[netId][tPortId] += abs(grid_i->voltage()) /(1.0/via_condutance_up + 1.0/loadConductance);
+                            // cerr << "net" << netId << ", tPort" << tPortId << ": voltage = " << grid_i->voltage();
+                            // cerr << ", current = " << abs(grid_i->voltage()) /(1.0/via_condutance_up + 1.0/loadConductance) << endl;
+                        // }
+                        // if (layId < _db.numLayers()-1) {
+                        if (layId < numLayers-1) {
+                            current += abs(grid_i->voltage() - _vGrid[layId+1][xId][yId]->voltage()) * via_condutance_up;
+                        } 
+                    }
+                }
+                if (layId == 0) {
+                    for (size_t tNodeId = 0; tNodeId < _db.numClusteredNodes(netId, tPortId+1); ++ tNodeId) {
+                        double tX = _db.vClusteredNode(netId, tPortId+1, tNodeId)->node()->ctrX();
+                        double tY = _db.vClusteredNode(netId, tPortId+1, tNodeId)->node()->ctrY();
+                        if (gridEnclose(grid_i, tX, tY)) {
+                            double loadConductance = _db.vNet(netId)->targetPort(tPortId)->current() / (_db.vNet(netId)->targetPort(tPortId)->voltage() * _db.numClusteredNodes(netId, tPortId+1));
+                            // vTplY.push_back(Eigen::Triplet<double>(node_id, node_id, 1.0/(1.0/ball_conductance + 1.0/loadConductance)));
+                            current += abs(grid_i->voltage()) /(1.0/ball_conductance + 1.0/loadConductance);
+                            _vTPortCurr[netId][tPortId] += abs(grid_i->voltage()) /(1.0/ball_conductance + 1.0/loadConductance);
+                            //cerr << "net" << netId << ", tPort" << tPortId << ": voltage = " << grid_i->voltage();
+                            //cerr << ", current = " << abs(grid_i->voltage()) /(1.0/ball_conductance + 1.0/loadConductance) << endl;
+                        }
+                    }
+                }
+                // _vTPortCurr[netId].push_back(tPortCurr);
+                // _vTPortVolt[netId].push_back(tPortCurr / loadConductance);
+                // if (_vTPortVolt[netId][tPortId] > _db.vNet(netId)->sourcePort()->voltage()) {
+                //     cerr << "ERROR: tPort voltage > sPort voltage !!!" << endl;
+                //     _vTPortVolt[netId][tPortId] = 0;
+                // }
+                // cerr << "tPortCurr = " << tPortCurr << ", tPortVolt = " << _vTPortVolt[netId][tPortId] << endl;
+            }
+            grid_i->setCurrent(current * 0.5);
+            // cerr << "gridCurrent = " << current * 0.5 << endl;
+            // if (grid_i->xId() == 25) {
+            //     cerr << "grid(" << layId << ", " << grid_i->xId() << ", " << grid_i->yId() << "): Current = " << current * 0.5;
+            //     cerr << ", Voltage = " << grid_i->voltage() << endl;
+            // }
+            // if (grid_i->xId() == 26) {
+            //     cerr << "grid(" << layId << ", " << grid_i->xId() << ", " << grid_i->yId() << "): Current = " << current * 0.5;
+            //     cerr << ", Voltage = " << grid_i->voltage() << endl;
+            // }
+            // if (grid_i->xId() == 27) {
+            //     cerr << "grid(" << layId << ", " << grid_i->xId() << ", " << grid_i->yId() << "): Current = " << current * 0.5;
+            //     cerr << ", Voltage = " << grid_i->voltage() << endl;
+            // }
+            // if (grid_i->xId() == 28) {
+            //     cerr << "grid(" << layId << ", " << grid_i->xId() << ", " << grid_i->yId() << "): Current = " << current * 0.5;
+            //     cerr << ", Voltage = " << grid_i->voltage() << endl;
+            // }
+            // cerr << "gridCurrent = " << current * 0.5 << endl;
+        }
+    }
+    // for(int i=0; i<20; i++) {
+    //     for(int j=0; j<20; j++)
+    //         printf("%4.1f ", mtx[i][j]);
+    //     printf("\n");
+    // }
+    
+    
+    for (size_t tPortId = 0; tPortId < _db.vNet(netId)->numTPorts(); ++ tPortId) {
+        double loadResistance = _db.vNet(netId)->targetPort(tPortId)->voltage() / _db.vNet(netId)->targetPort(tPortId)->current();
+        _vTPortVolt[netId][tPortId] = _vTPortCurr[netId][tPortId] * loadResistance;
+        cerr << "net" << netId << " tPort" << tPortId << ": current = " << _vTPortCurr[netId][tPortId];
+        cerr << ", voltage = " << _vTPortVolt[netId][tPortId] << endl;
+    }
+    
 }
 
 double DetailedMgr::getResistance(Grid* g1, Grid* g2) {
@@ -1530,7 +1682,7 @@ bool compareByCurrent(const std::pair<double, int>& a, const std::pair<double, i
 }
 
 
-void DetailedMgr::SmartGrow(size_t layId, size_t netId, int k){
+size_t DetailedMgr::SmartGrow(size_t layId, size_t netId, int k){
     cout << "###########Smart GROW###########" << endl;
     //cout << "size of NetGrid after smartgrow : " << _vNetGrid[netId][layId].size() << endl;  
 
@@ -1588,64 +1740,61 @@ void DetailedMgr::SmartGrow(size_t layId, size_t netId, int k){
 
     //cout << "size of adding neighbor : " << _vNetGrid[netId][layId].size()<<endl;
 
-    //DO PEEC CURRENT SIMULATION
-    buildMtx(1);
-
-    vector<pair<double,int>> NodeCurrent;
-
-    for(size_t i = 0; i < Candidate.size();i++){
-        int GridID = Candidate[i];
-        Grid* grid = _vNetGrid[netId][layId][GridID];
-        double current = grid->current(); ///*_vTPortCurr[netId][GridID];*/   /*PEEC GridID CURRENT*/
-        NodeCurrent.push_back(make_pair(current,GridID));
-    }
-
-    //sort 
-    std::sort(NodeCurrent.begin(), NodeCurrent.end(), compareByCurrent);
-
     //only keep k nodes and remove other nodes
-    int removeNum = NodeCurrent.size() - k;
+    int removeNum = Candidate.size() - k;
     int alreadyRemove = 0;
 
     if(removeNum > 0){
+        //DO PEEC CURRENT SIMULATION
+        buildSingleNetMtx(netId,layId+1);
+
+        vector<pair<double,int>> NodeCurrent;
+
+        for(size_t i = 0; i < Candidate.size();i++){
+            int GridID = Candidate[i];
+            Grid* grid = _vNetGrid[netId][layId][GridID];
+            double current = grid->current(); ///*_vTPortCurr[netId][GridID];*/   /*PEEC GridID CURRENT*/
+            NodeCurrent.push_back(make_pair(current,GridID));
+        }
+
+        //sort 
+        std::sort(NodeCurrent.begin(), NodeCurrent.end(), compareByCurrent);
+
         Grid* r = new Grid(0,0);//new a pointer for later remove operation
-        for(int i = 0; alreadyRemove < removeNum && i < NodeCurrent.size() ; i++){
-            bool CanRemove = false;
+        for(int i = 0; alreadyRemove < removeNum; i++){
+            
             int gridId = NodeCurrent[i].second;
             Grid* grid = _vNetGrid[netId][layId][gridId];
-            for(size_t j = 0; j < grid->numNeighbors();j++ ){
-                Grid* nGrid = grid->vNeighbor(j);
-                if(nGrid->netId() != grid->netId()){
-                    CanRemove = true;
-                    break;
-                }
-            }
-            if(CanRemove){
-                grid->setNetId(-1);//remove it from net
-                grid->setOccupied(0);
-                _vNetGrid[netId][layId][gridId] = r; //set pointer to r and delete later (avoid changing the size if vNetGrid[netId][layId])
-                //cout << "Remove GridID : " << gridId << " ";
-                //cout << "Remove current : " << NodeCurrent[i].first<<endl;
-                alreadyRemove ++;
-            }
+            
+            grid->setNetId(-1);//remove it from net
+            grid->setOccupied(0);
+            _vNetGrid[netId][layId][gridId] = r; //set pointer to r and delete later (avoid changing the size if vNetGrid[netId][layId])
+            //cout << "Remove GridID : " << gridId << " ";
+            //cout << "Remove current : " << NodeCurrent[i].first<<endl;
+            alreadyRemove ++;
             
         }
 
         //delete removed grid
         _vNetGrid[netId][layId].erase(std::remove(_vNetGrid[netId][layId].begin(),_vNetGrid[netId][layId].end(), r), _vNetGrid[netId][layId].end());
         delete r;
-    }
+    }   
+
+    if(k < Candidate.size()) return k;
+    else return Candidate.size();
 
     //cout << "size of NetGrid after smartgrow : " << _vNetGrid[netId][layId].size() << endl;  
 
 }
 
 
+
+
 void DetailedMgr::SmartRefine(size_t layId, size_t netId, int k){
 
     cout << "###########Smart Refine###########" << endl;
 
-    buildMtx(1);
+    buildSingleNetMtx(netId,layId+1);
 
     vector<pair<double,int>> NodeCurrent;
 
@@ -1658,16 +1807,33 @@ void DetailedMgr::SmartRefine(size_t layId, size_t netId, int k){
     //sort 
     std::sort(NodeCurrent.begin(), NodeCurrent.end(), compareByCurrent);
 
+    int alreadyRemoved = 0;
+
     //remove k nodes
     Grid* r = new Grid(0,0);//new a pointer for later remove operation
-    for(int i = 0; i < k ; i++){
+    for(int i = 0; i < NodeCurrent.size() && alreadyRemoved < k ; i++){
         int gridId = NodeCurrent[i].second;
+        bool CanRemove = false;
+
         Grid* grid = _vNetGrid[netId][layId][gridId];
-        grid->setNetId(-1);//remove it from net
-        grid->setOccupied(0);
-        _vNetGrid[netId][layId][gridId] = r; //set pointer to r and delete later (avoid changing the size if vNetGrid[netId][layId])
-        //cout << "Remove GridID : " << gridId << " ";
-        //cout << "Remove current : " << NodeCurrent[i].first<<endl;
+
+        for(size_t j = 0; j < grid->numNeighbors();j++ ){
+            Grid* nGrid = grid->vNeighbor(j);
+            if(nGrid->netId() != grid->netId()){
+                CanRemove = true;
+                break;
+            }
+        }
+
+        if(CanRemove){
+            grid->setNetId(-1);//remove it from net
+            grid->setOccupied(0);
+            _vNetGrid[netId][layId][gridId] = r; //set pointer to r and delete later (avoid changing the size if vNetGrid[netId][layId])
+            //cout << "Remove GridID : " << gridId << " ";
+            //cout << "Remove current : " << NodeCurrent[i].first<<endl;
+            alreadyRemoved ++;
+        }
+        
     }
 
     //delete removed grid
@@ -1679,26 +1845,133 @@ void DetailedMgr::SmartRefine(size_t layId, size_t netId, int k){
 }
 
 void DetailedMgr::SPROUT(){
-    //set one target impedance/area 之後是根據net/layer不同給target，若是全部層的net一起跑，需要改上面smartGROW的寫法
-    vector<vector<double>> target = {{600,600,600,300},{600,600,600,600},{400,400,400,400}}; // target[netId][layId]
+    cout << "####SPROUT####"<<endl;
+    vector<double> target; // target[netId]
+    vector<vector<bool>> HasAStar; //[netId][layId]
 
-    //for loop for each layer and net
-    for(size_t netId = 0; netId < _vNetGrid.size(); ++netId){
-        for(size_t layId = 0; layId < _vNetGrid[netId].size();++layId){
-            //SmartGrow stage
-            int Area = _vNetGrid[netId][layId].size(); // number of grid is area but this might have to change to impedance
-            int k = 150;
+    for(size_t netId = 0; netId < _vNetGrid.size(); ++netId) target.push_back(6000);
+    bool AllReach = false;
+    int iterations = 0;
+
+    while(!AllReach){
+        iterations ++;
+        cout << "#######THE " << iterations << " times tries#######" << endl;
+        AllReach = true;
         
-            while(Area < target[netId][layId]){
-                SmartGrow(layId,netId,k);
-                k = (int)(k/1.25);//隨便設一個遞減函數
-                Area = _vNetGrid[netId][layId].size();
+        /////////reset all nets and initialize grid map////////////
+        ResetAllNets();
+        initGridMap();
+        synchronize();
+        ///////////////////////////////////////////////////////////
+
+
+        /////////////////Initialize HasAStar///////////////////////
+        vector<vector<bool>> HasAStar; //[netId][layId]
+
+        for(size_t netId = 0; netId < _vNetGrid.size(); ++netId){
+            vector<bool> temp;
+            for(size_t layId = 0; layId < _vNetGrid[netId].size();++layId){
+                temp.push_back(false);
+            }
+            HasAStar.push_back(temp);
+        }
+        ////////////////////////////////////////////////////////////
+
+        ///////Initialize some parameter for one iteration//////////
+        bool ReachTarget = false;
+        size_t netId = 0;
+        int count = 0;
+        ////////////////////////////////////////////////////////////
+
+    
+        //for loop for each layer and net
+        while(netId < _vNetGrid.size()){
+            cout << "##########NET " << netId << " DO SMARTGROW##########" << endl;
+            for(size_t layId = 0; layId < _vNetGrid[netId].size();++layId){
+                cout << "#########LAYER " << layId << " ##########" << endl;
+
+                //SmartGrow stage
+                int Area = 0;
+                for(size_t layId = 0; layId < _vNetGrid[netId].size();++layId) Area += _vNetGrid[netId][layId].size();
+                
+                int k = Area/5;
+
+                //If area constraint is not satisfied and this layer didn't do astar before -> do astar
+                if(!HasAStar[netId][layId] && Area < target[netId]){
+                    //do astar
+                    bool CanRoute = SingleNetAStar(netId,layId);
+                    if(!CanRoute){
+                        continue; // this layer can't route, go to next layer
+                    }
+                    else{
+                        HasAStar[netId][layId] = true;
+                        synchronize(); // 同步vGrid and vNetGrid
+                        buildSingleNetMtx(netId,layId+1);
+                    }
+                }
+
+                //smartgrow stage
+                while(Area < target[netId] && HasAStar[netId][layId]){
+                    size_t grownum = SmartGrow(layId,netId,k);
+                    //k = (int)(k/1.1);//隨便設一個遞減函數
+                    Area += grownum;
+                    cout << "GROW " << grownum << endl;
+                    if(grownum == 0){
+                        cout << "NO GROW" << endl;
+                        break;
+                    }
+                }
+
+                //Refine stage
+                ///int r = 20;
+                //SmartRefine(layId,netId,r);
             }
 
-            //Refine stage
-            ///int r = 20;
-            //SmartRefine(layId,netId,r);
-        } 
+            //simulation stage
+            ReachTarget = true;
+            buildSingleNetMtx(netId,_vNetGrid[netId].size());
+            //if not meet impedance constraint, augment the area upper bound
+            for(size_t tPortId = 0; tPortId < _vTPortCurr[netId].size();tPortId++){
+                if(_vTPortCurr[netId][tPortId] < _db.vNet(netId)->targetPort(tPortId)->current()){
+                    AllReach = false;
+                    ReachTarget = false;
+                    count ++;
+                    target[netId] *= 1.3;
+                    break;
+                }
+                if(_vTPortVolt[netId][tPortId] < _db.vNet(netId)->targetPort(tPortId)->voltage()){
+                    AllReach = false;
+                    ReachTarget = false;
+                    count ++;
+                    target[netId] *= 1.3;
+                    break;
+                }
+            }
+            if(count > 4){
+                cout << "#####OUT OF TIME#####" << endl;
+                count = 0;
+                netId++;
+            }
+            if(ReachTarget) {
+                cout << "####FINISH####" << endl;
+                cout << "Target AREA : " << target[netId] << endl;
+                netId++;
+            }
+        }
+
+
+        if(iterations > 1){
+            cout << "###OUT OF TIME###" <<endl;
+            cout << "###CANT REACH TARGET###"<<endl;
+            break;
+        }
     }
 
+    if(iterations <= 1){
+        cout << "###REACH TARGET WITH " << iterations << " ITERATIONS###"<< endl;
+        cout << "ALL NET AREA UPPER BOUND IS : " << endl;
+        for(size_t netId = 0; netId < _vNetGrid.size(); ++netId){
+            cout << "NETID : " << netId << " AREA : " << target[netId] << endl;
+        }
+    }
 }

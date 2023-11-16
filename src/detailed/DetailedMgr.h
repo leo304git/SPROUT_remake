@@ -83,17 +83,18 @@ class DetailedMgr {
         void plotGridMapVoltage();
         void plotGridMapCurrent();
         void naiveAStar();
+        bool SingleNetAStar(size_t netId, size_t layId);
         void eigenTest();
         void plotDB();
         void synchronize();
         void addViaGrid();
-        void buildSingleNetMtx(size_t netId);
+        void buildSingleNetMtx(size_t netId , size_t numLayers);
         void buildMtx(size_t numLayers);
         double getResistance(Grid*, Grid*);
         void check();
         void fillInnerCircle(size_t layId, size_t netId);
         void fillBoard(size_t layId, size_t netId, size_t xId, size_t yId);
-        void SmartGrow(size_t layId, size_t netId, int k);
+        size_t SmartGrow(size_t layId, size_t netId, int k);
         void SmartRefine(size_t layId, size_t netId, int k);
         void SPROUT();
         int indexOfInnerCircles;
@@ -102,6 +103,7 @@ class DetailedMgr {
         
     private:
         void clearNet(size_t layId, size_t netId);
+        void ResetAllNets();
         bool legal(int xId, int yId) { return (xId>=0 && xId<_vGrid[0].size() && yId>=0 && yId<_vGrid[0][0].size()); }
         DB& _db;
         SVGPlot& _plot;

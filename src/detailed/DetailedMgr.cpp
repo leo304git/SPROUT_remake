@@ -1847,128 +1847,129 @@ void DetailedMgr::SmartRefine(size_t layId, size_t netId, int k){
 void DetailedMgr::SPROUT(){
     cout << "####SPROUT####"<<endl;
     vector<double> target; // target[netId]
-    vector<vector<bool>> HasAStar; //[netId][layId]
 
     for(size_t netId = 0; netId < _vNetGrid.size(); ++netId) target.push_back(6000);
-    bool AllReach = false;
-    int iterations = 0;
-
-    while(!AllReach){
-        iterations ++;
-        cout << "#######THE " << iterations << " times tries#######" << endl;
-        AllReach = true;
         
-        /////////reset all nets and initialize grid map////////////
-        ResetAllNets();
-        initGridMap();
-        synchronize();
-        ///////////////////////////////////////////////////////////
+    /////////////////Initialize HasAStar///////////////////////
+    vector<vector<bool>> HasAStar; //[netId][layId]
 
-
-        /////////////////Initialize HasAStar///////////////////////
-        vector<vector<bool>> HasAStar; //[netId][layId]
-
-        for(size_t netId = 0; netId < _vNetGrid.size(); ++netId){
-            vector<bool> temp;
-            for(size_t layId = 0; layId < _vNetGrid[netId].size();++layId){
-                temp.push_back(false);
-            }
-            HasAStar.push_back(temp);
+    for(size_t netId = 0; netId < _vNetGrid.size(); ++netId){
+        vector<bool> temp;
+        for(size_t layId = 0; layId < _vNetGrid[netId].size();++layId){
+            temp.push_back(false);
         }
-        ////////////////////////////////////////////////////////////
+        HasAStar.push_back(temp);
+    }
+    ////////////////////////////////////////////////////////////
 
-        ///////Initialize some parameter for one iteration//////////
-        bool ReachTarget = false;
-        size_t netId = 0;
-        int count = 0;
-        ////////////////////////////////////////////////////////////
+    //////////////////Initialize some parameter/////////////////
+    bool ReachTarget = false;
+    size_t netId = 0;
+    bool canGrow = true;
+    //int count = 0;
+    ////////////////////////////////////////////////////////////
 
-    
-        //for loop for each layer and net
-        while(netId < _vNetGrid.size()){
-            cout << "##########NET " << netId << " DO SMARTGROW##########" << endl;
-            for(size_t layId = 0; layId < _vNetGrid[netId].size();++layId){
-                cout << "#########LAYER " << layId << " ##########" << endl;
 
-                //SmartGrow stage
-                int Area = 0;
-                for(size_t layId = 0; layId < _vNetGrid[netId].size();++layId) Area += _vNetGrid[netId][layId].size();
-                
-                int k = Area/5;
+    //for loop for each layer and net
+    while(netId < _vNetGrid.size()){
+        cout << "##########NET " << netId << " DO SMARTGROW##########" << endl;
+        for(size_t layId = 0; layId < _vNetGrid[netId].size();++layId){
+            cout << "#########LAYER " << layId << " ##########" << endl;
 
-                //If area constraint is not satisfied and this layer didn't do astar before -> do astar
-                if(!HasAStar[netId][layId] && Area < target[netId]){
-                    //do astar
-                    bool CanRoute = SingleNetAStar(netId,layId);
-                    if(!CanRoute){
-                        continue; // this layer can't route, go to next layer
-                    }
-                    else{
-                        HasAStar[netId][layId] = true;
-                        synchronize(); // 同步vGrid and vNetGrid
-                        buildSingleNetMtx(netId,layId+1);
-                    }
+            canGrow = true;
+            //SmartGrow stage
+            int Area = 0;
+            for(size_t layId = 0; layId < _vNetGrid[netId].size();++layId) Area += _vNetGrid[netId][layId].size();
+            
+            int k = Area/5;
+
+            //If area constraint is not satisfied and this layer didn't do astar before -> do astar
+            if(!HasAStar[netId][layId] && Area < target[netId]){
+                //do astar
+                bool CanRoute = SingleNetAStar(netId,layId);
+                HasAStar[netId][layId] = true;
+                if(!CanRoute){
+                    continue; // this layer can't route, go to next layer
                 }
-
-                //smartgrow stage
-                while(Area < target[netId] && HasAStar[netId][layId]){
-                    size_t grownum = SmartGrow(layId,netId,k);
-                    //k = (int)(k/1.1);//隨便設一個遞減函數
-                    Area += grownum;
-                    cout << "GROW " << grownum << endl;
-                    if(grownum == 0){
-                        cout << "NO GROW" << endl;
-                        break;
-                    }
+                else{
+                    synchronize(); // 同步vGrid and vNetGrid
+                    buildSingleNetMtx(netId,layId+1);
                 }
-
-                //Refine stage
-                ///int r = 20;
-                //SmartRefine(layId,netId,r);
             }
 
-            //simulation stage
-            ReachTarget = true;
-            buildSingleNetMtx(netId,_vNetGrid[netId].size());
-            //if not meet impedance constraint, augment the area upper bound
-            for(size_t tPortId = 0; tPortId < _vTPortCurr[netId].size();tPortId++){
-                if(_vTPortCurr[netId][tPortId] < _db.vNet(netId)->targetPort(tPortId)->current()){
-                    AllReach = false;
-                    ReachTarget = false;
-                    count ++;
-                    target[netId] *= 1.3;
-                    break;
-                }
-                if(_vTPortVolt[netId][tPortId] < _db.vNet(netId)->targetPort(tPortId)->voltage()){
-                    AllReach = false;
-                    ReachTarget = false;
-                    count ++;
-                    target[netId] *= 1.3;
+            //smartgrow stage
+            while(Area < target[netId] && HasAStar[netId][layId]){
+                size_t grownum = SmartGrow(layId,netId,k);
+                //k = (int)(k/1.1);//隨便設一個遞減函數
+                Area += grownum;
+                cout << "GROW " << grownum << endl;
+                if(grownum == 0){
+                    cout << "NO GROW" << endl;
+                    canGrow = false;
                     break;
                 }
             }
-            if(count > 4){
-                cout << "#####OUT OF TIME#####" << endl;
-                count = 0;
-                netId++;
-            }
-            if(ReachTarget) {
-                cout << "####FINISH####" << endl;
-                cout << "Target AREA : " << target[netId] << endl;
-                netId++;
-            }
+
+            //Refine stage
+            ///int r = 20;
+            //SmartRefine(layId,netId,r);
         }
 
+        //simulation stage
+        ReachTarget = true;
+        buildSingleNetMtx(netId,_vNetGrid[netId].size());
 
-        if(iterations > 1){
-            cout << "###OUT OF TIME###" <<endl;
-            cout << "###CANT REACH TARGET###"<<endl;
-            break;
+        cout << "## " << canGrow << " ##" << endl;
+
+        if(!canGrow) break;
+
+        //if not meet impedance constraint, augment the area upper bound
+        for(size_t tPortId = 0; tPortId < _vTPortCurr[netId].size();tPortId++){
+            if(_vTPortCurr[netId][tPortId] < _db.vNet(netId)->targetPort(tPortId)->current()){
+                ReachTarget = false;
+                //count ++;
+                target[netId] *= 1.5;
+                break;
+            }
+            if(_vTPortVolt[netId][tPortId] < _db.vNet(netId)->targetPort(tPortId)->voltage()){
+                ReachTarget = false;
+                //count ++;
+                target[netId] *= 1.5;
+                break;
+            }
+        }
+        
+        if(ReachTarget) {
+            cout << "#### NET "<< netId << " FINISH####" << endl;
+            cout << "Target AREA : " << target[netId] << endl;
+            netId++;
         }
     }
 
-    if(iterations <= 1){
-        cout << "###REACH TARGET WITH " << iterations << " ITERATIONS###"<< endl;
+    bool AllReach = true;
+    for(size_t netId = 0; netId < _vNetGrid.size(); ++ netId){
+        for(size_t tPortId = 0; tPortId < _vTPortCurr[netId].size();tPortId++){
+            if(_vTPortCurr[netId][tPortId] < _db.vNet(netId)->targetPort(tPortId)->current()){
+                AllReach = false;
+                break;
+            }
+            if(_vTPortVolt[netId][tPortId] < _db.vNet(netId)->targetPort(tPortId)->voltage()){
+                AllReach = false;
+                break;
+            }
+        }
+    }
+
+
+    if(AllReach){
+        cout << "###REACH TARGET###"<< endl;
+        cout << "ALL NET AREA UPPER BOUND IS : " << endl;
+        for(size_t netId = 0; netId < _vNetGrid.size(); ++netId){
+            cout << "NETID : " << netId << " AREA : " << target[netId] << endl;
+        }
+    }
+    else{
+        cout << "###CANT REACH TARGET###"<<endl;
         cout << "ALL NET AREA UPPER BOUND IS : " << endl;
         for(size_t netId = 0; netId < _vNetGrid.size(); ++netId){
             cout << "NETID : " << netId << " AREA : " << target[netId] << endl;

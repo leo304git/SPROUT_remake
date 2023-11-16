@@ -96,7 +96,6 @@ int main(int argc, char* argv[]){
     DetailedMgr detailedMgr(db, plot, 2 * db.VIA16D8A24()->padRadius(0));
     // // detailedMgr.eigenTest();
     detailedMgr.initGridMap();
-    detailedMgr.initGridMap();
     // detailedMgr.check();
     // detailedMgr.plotGraph();
     // // // detailedMgr.plotGridMap();
@@ -105,11 +104,11 @@ int main(int argc, char* argv[]){
     // detailedMgr.plotGridMap();
     //detailedMgr.synchronize();
     //detailedMgr.check();
-    // detailedMgr.addViaGrid();
+    //detailedMgr.addViaGrid();
     // detailedMgr.check();
-    detailedMgr.buildMtx(1);
+    //detailedMgr.buildMtx(1);
     //detailedMgr.check();
-    //detailedMgr.SPROUT();
+    detailedMgr.SPROUT();
     // detailedMgr.plotGridMapVoltage();
     detailedMgr.plotGridMapCurrent();
     //detailedMgr.plotGridMap();

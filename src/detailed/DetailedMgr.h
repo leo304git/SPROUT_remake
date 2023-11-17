@@ -74,6 +74,15 @@ class DetailedMgr {
                 vector<double> temp(_db.vNet(netId)->numTPorts(), 0.0);
                 _vTPortVolt.push_back(temp);
             }
+            // _vNetPortGrid
+            for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
+                vector< vector< pair<int, int> > > temp;
+                for (size_t portId = 0; portId <_db.vNet(netId)->numTPorts()+1; ++ portId) {
+                    vector< pair<int, int> > tempPort;
+                    temp.push_back(tempPort);
+                }
+                _vNetPortGrid.push_back(temp);
+            }
         }
         ~DetailedMgr() {}
 
@@ -88,6 +97,7 @@ class DetailedMgr {
         void plotDB();
         void synchronize();
         void addViaGrid();
+        void addPortVia();
         void buildSingleNetMtx(size_t netId , size_t numLayers);
         void buildMtx(size_t numLayers);
         double getResistance(Grid*, Grid*);
@@ -112,6 +122,7 @@ class DetailedMgr {
         vector< vector< vector< Grid* > > > _vNetGrid;  // index = [netId] [layId] [gridId]
         vector< vector< Grid* > > _vSGrid;              // index = [netId] [layId]
         vector< vector< vector< Grid* > > > _vTGrid;    // index = [netId] [layId] [tPortId]
+        vector< vector< vector< pair<int, int> > > > _vNetPortGrid;        // index = [netId] [portId] [gridId]
         size_t _numXs;
         size_t _numYs;
         vector< vector< double > > _vTPortVolt;     // index = [netId] [netTportId], record the target port voltage during simulation

@@ -10,7 +10,7 @@ bool Shape::enclose(double x, double y) {
     struct Line {
         Point p1, p2;
     };
-
+/*
     auto onLine = [] (Line l1, Point p) -> bool {
         // Check whether p is on the line or not
         if (p.x <= max(l1.p1.x, l1.p2.x)
@@ -65,7 +65,6 @@ bool Shape::enclose(double x, double y) {
  
     // Create a point at infinity, y is same as point p
     Point p = {x, y};
-    // Line exline = { p, { -1.0, 10000 } };
     Line exline = { p, { 1000, y } };
     int count = 0;
     int i = 0;
@@ -87,4 +86,22 @@ bool Shape::enclose(double x, double y) {
  
     // When count is odd
     return count & 1;
+*/
+    vector<Point> points;
+    Point point = {x, y};
+    
+    for(int i=0; i<numBPolyVtcs(); i++)
+        points.push_back({bPolygonX(i), bPolygonY(i)});
+
+    int i, j, nvert = numBPolyVtcs();
+    bool c = false;
+    
+    for(i = 0, j = nvert - 1; i < nvert; j = i++) {
+        if( ( (points[i].y >= point.y ) != (points[j].y >= point.y) ) &&
+            (point.x <= (points[j].x - points[i].x) * (point.y - points[i].y) / (points[j].y - points[i].y) + points[i].x)
+        )
+            c = !c;
+    }
+    
+    return c;
 }

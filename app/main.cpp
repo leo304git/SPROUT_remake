@@ -104,7 +104,8 @@ int main(int argc, char* argv[]){
     // detailedMgr.plotGridMap();
     //detailedMgr.synchronize();
     //detailedMgr.check();
-    //detailedMgr.addViaGrid();
+    detailedMgr.addPortVia();
+    detailedMgr.addViaGrid();
     // detailedMgr.check();
     //detailedMgr.buildMtx(1);
     //detailedMgr.check();

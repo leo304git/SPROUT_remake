@@ -54,9 +54,14 @@ void DetailedMgr::initGridMap() {
                     // Shape* sBBox = _db.vNet(netId)->sourceViaCstr()->bBox();
                     Shape* sBBox = _db.vNet(netId)->sourcePort()->boundPolygon();
                     if (occupy(xId, yId, sBBox)) {
+                        //only set port with one layer
+                        if(layId == 0){
+                            _vNetPortGrid[netId][0].push_back(make_pair(xId,yId));
+                        }
                         if (fullyOccupy(xId, yId, sBBox)) {  // inner grids
                             grid->setOccupied(true);
                             grid->setNetId(netId);
+
                         } else {    // outer rim grids
                             grid->setOccupied(false);
                             grid->setNetId(netId);
@@ -78,6 +83,9 @@ void DetailedMgr::initGridMap() {
                             tBBox = p;
                         } 
                         if (occupy(xId, yId, tBBox)) {
+                            if(layId == 0){
+                                _vNetPortGrid[netId][tPortId+1].push_back(make_pair(xId,yId));
+                            }
                             if (fullyOccupy(xId, yId, tBBox)) {  // inner grids
                                 grid->setOccupied(true);
                                 grid->setNetId(netId);
@@ -402,7 +410,7 @@ void DetailedMgr::plotGridMapCurrent() {
         // double via_condutance = (_db.vMetalLayer(0)->conductivity() * _db.vVia(0)->shape()->area() * 1E-6) / (_db.vMediumLayer(0)->thickness() * 1E-3);
         // cerr << "netId = " << netId << endl;
         // double ubCurr = _db.vNet(netId)->sourcePort()->voltage() * via_condutance;
-        double ubCurr = 80;
+        double ubCurr = 5;
         // double lbVolt = _db.vNet(netId)->targetPort(0)->voltage();
         // for (size_t tPortId = 0; tPortId < _db.vNet(netId)->numTPorts(); ++ tPortId) {
         //     if (_db.vNet(netId)->targetPort(tPortId)->voltage() < lbVolt) {
@@ -751,6 +759,53 @@ void DetailedMgr::addViaGrid() {
                     }
                 }
             }
+        }
+    }
+}
+
+void DetailedMgr::addPortVia() {
+    cerr << "Adding Vias to Each Port..." << endl;
+    for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
+        Port* sPort = _db.vNet(netId)->sourcePort();
+        int numSVias = _vNetPortGrid[netId][0].size();
+        assert(numSVias >= 1);
+        cerr << "net" << netId << " sPort: numVias = " << numSVias << "; numGrids = " << _vNetPortGrid[netId][0].size() << endl;
+        //cerr << "viaArea = " << sPort->viaArea() << ", metalArea = " <<  _db.VIA16D8A24()->metalArea() << endl;
+        cerr << "capacity = " << _vNetPortGrid[netId][0].size() * _db.VIA16D8A24()->metalArea() << endl;
+        vector< pair<double, double> > centPos;
+        for(size_t gridId = 0; gridId < _vNetPortGrid[netId][0].size(); ++gridId){
+            double x = (_vNetPortGrid[netId][0][gridId].first + 0.5)*_gridWidth;
+            double y = (_vNetPortGrid[netId][0][gridId].second + 0.5)*_gridWidth;
+            centPos.push_back(make_pair(x,y));
+        }
+        assert(centPos.size() == numSVias);
+        vector<size_t> vViaId(centPos.size(), 0);
+        for (size_t viaId = 0; viaId < centPos.size(); ++ viaId) {
+            vViaId[viaId] = _db.addVia(centPos[viaId].first, centPos[viaId].second, netId, ViaType::Source);
+        }
+        sPort->setViaCluster(_db.clusterVia(vViaId));
+    
+        for (size_t tPortId = 0; tPortId < _db.vNet(netId)->numTPorts(); ++ tPortId) {
+            Port* tPort = _db.vNet(netId)->targetPort(tPortId);
+            
+            int numTVias = _vNetPortGrid[netId][tPortId+1].size();
+            assert(numTVias >= 1);
+            cerr << "net" << netId << " tPort" << tPortId << ": numVias = " << numTVias << "; numGrids = " << _vNetPortGrid[netId][tPortId+1].size() << endl;
+            vector< pair<double, double> > centPosT;
+
+            for(size_t gridId = 0; gridId < _vNetPortGrid[netId][tPortId+1].size(); ++gridId){
+                double x = (_vNetPortGrid[netId][tPortId+1][gridId].first + 0.5)*_gridWidth;
+                double y = (_vNetPortGrid[netId][tPortId+1][gridId].second + 0.5)*_gridWidth;
+                centPosT.push_back(make_pair(x,y));
+            }
+
+            assert(centPosT.size() == numTVias);
+            vector<size_t> vViaIdT(centPosT.size(), 0);
+            for (size_t viaIdT = 0; viaIdT < centPosT.size(); ++ viaIdT) {
+                vViaIdT[viaIdT] = _db.addVia(centPosT[viaIdT].first, centPosT[viaIdT].second, netId, ViaType::Target);
+            }
+            tPort->setViaCluster(_db.clusterVia(vViaIdT));
+
         }
     }
 }
@@ -1887,11 +1942,11 @@ void DetailedMgr::SPROUT(){
             if(!HasAStar[netId][layId] && Area < target[netId]){
                 //do astar
                 bool CanRoute = SingleNetAStar(netId,layId);
-                HasAStar[netId][layId] = true;
                 if(!CanRoute){
                     continue; // this layer can't route, go to next layer
                 }
                 else{
+                    HasAStar[netId][layId] = true;
                     synchronize(); // 同步vGrid and vNetGrid
                     buildSingleNetMtx(netId,layId+1);
                 }
@@ -1928,13 +1983,20 @@ void DetailedMgr::SPROUT(){
             if(_vTPortCurr[netId][tPortId] < _db.vNet(netId)->targetPort(tPortId)->current()){
                 ReachTarget = false;
                 //count ++;
-                target[netId] *= 1.5;
+                // int diff = (_db.vNet(netId)->targetPort(tPortId)->current() - _vTPortCurr[netId][tPortId])*100;
+                // if(diff < 1000) target[netId] += 1000;
+                // else target[netId] += diff;
+                target[netId] *= 1.2;
+                
                 break;
             }
             if(_vTPortVolt[netId][tPortId] < _db.vNet(netId)->targetPort(tPortId)->voltage()){
                 ReachTarget = false;
                 //count ++;
-                target[netId] *= 1.5;
+                // int diff = (_db.vNet(netId)->targetPort(tPortId)->current() - _vTPortCurr[netId][tPortId])*1000;
+                // if(diff < 1000) target[netId] += 1000;
+                // else target[netId] += diff;
+                target[netId] *= 1.2;
                 break;
             }
         }

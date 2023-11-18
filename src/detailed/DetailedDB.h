@@ -9,6 +9,7 @@ class Grid {
         Grid(size_t xId, size_t yId) : _xId(xId), _yId(yId) {
             _occupied = false;
             _netId = -1;
+            _IsPort = false;
             // _congestion = 0;
             // _congestCur = 0;
             // _congestHis = 0;
@@ -23,12 +24,15 @@ class Grid {
         int netId() const { return _netId; }
         double voltage() const { return _voltage; }
         double current() const { return _current; }
+        bool IsPort() const {return _IsPort; }
 
         void setOccupied(bool occupied) { _occupied = occupied; }
         void addNeighbor(Grid* grid) { _vNeighbor.push_back(grid); }
         void setNetId(int netId) { _netId = netId; }
         void setVoltage(double voltage) { _voltage = voltage; }
         void setCurrent(double current) { _current = current; }
+        void setPort(){ _IsPort = true; }
+
         // int congestion() const { return _congestion; }
         // int congestCur() const { return _congestCur; }
         // int congestHis() const { return _congestHis; }
@@ -56,6 +60,7 @@ class Grid {
         // int _congestCur;    // current congestion cost
         // int _congestHis;    // history congestion cost
         // vector<size_t> _vNetId;
+        bool _IsPort;
         size_t _xId;
         size_t _yId;
         bool _occupied;

@@ -110,6 +110,8 @@ class DetailedMgr {
         int indexOfInnerCircles;
         bool thisSearchHaveFinished;
         vector< vector< int > > boardOfInnerCircles; 
+        void writeColorMap_v2(const char* path, bool isVoltage);
+        vector< pair<double, double> > kMeansClustering(vector< pair<int,int> > vGrid, int numClusters, int numEpochs);
         
     private:
         void clearNet(size_t layId, size_t netId);

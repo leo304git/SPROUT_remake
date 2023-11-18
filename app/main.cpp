@@ -8,9 +8,6 @@
 using namespace std;
 
 int main(int argc, char* argv[]){
-    //time
-    time_t start, end;
-    time(&start);
 
     ifstream finST, fin;
     ofstream fout;
@@ -61,6 +58,10 @@ int main(int argc, char* argv[]){
     db.setBoundary(boardWidth, boardHeight);
     Parser parser(finST, fin, db, offsetX, offsetY, plot);
     parser.parse();
+
+    //time
+    time_t start, end;
+    time(&start);
     // NetworkMgr mgr(db, plot);
     PreMgr preMgr(db, plot);
     preMgr.nodeClustering();
@@ -93,7 +94,7 @@ int main(int argc, char* argv[]){
     // }
     // globalMgr.plotCurrentPaths();
 
-    DetailedMgr detailedMgr(db, plot, 2 * db.VIA16D8A24()->padRadius(0));
+    DetailedMgr detailedMgr(db, plot, 2 * db.VIA16D8A24()->drillRadius());
     // // detailedMgr.eigenTest();
     detailedMgr.initGridMap();
     // detailedMgr.check();
@@ -106,15 +107,18 @@ int main(int argc, char* argv[]){
     //detailedMgr.check();
     detailedMgr.addPortVia();
     detailedMgr.addViaGrid();
+    //detailedMgr.naiveAStar();
     // detailedMgr.check();
     //detailedMgr.buildMtx(1);
     //detailedMgr.check();
-    detailedMgr.SPROUT();
-    // detailedMgr.plotGridMapVoltage();
-    detailedMgr.plotGridMapCurrent();
-    //detailedMgr.plotGridMap();
 
+    detailedMgr.SPROUT();
     time(&end);
+    //detailedMgr.plotGridMapVoltage();
+    //detailedMgr.plotGridMapCurrent();
+    detailedMgr.plotGridMap();
+    detailedMgr.buildMtx(3);
+    //time(&end);
     double time_used = double(end - start);
     int hour = 0, min = 0;
     if(time_used >= 60){
@@ -126,6 +130,9 @@ int main(int argc, char* argv[]){
         min = min%60;
     }
     cout << "Time : " << hour << " hours " << min <<" mins "<< fixed << setprecision(5) << time_used << " sec " << endl; 
+
+    detailedMgr.writeColorMap_v2("../../exp/output/voltageColorMap.txt", 1);
+    detailedMgr.writeColorMap_v2("../../exp/output/currentColorMap.txt", 0);
 
     // for (size_t layId = 0; layId < db.numLayers(); ++ layId) {
     //     for (size_t netId = 0; netId < db.numNets(); ++netId){

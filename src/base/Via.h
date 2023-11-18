@@ -62,6 +62,7 @@ class Via{
         // unsigned int rowId() const { return _rowId; }
         // unsigned int colId() const { return _colId; }
         unsigned int netId() const {return _netId; }
+        double drillRadius() const { return _padStack->_drillRadius; }
         ViaType viaType() const { return _viaType; }
         Shape* shape() {return _shape;}
         double x() const { return _shape->ctrX(); }     // 改 _x

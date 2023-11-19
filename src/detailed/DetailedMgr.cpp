@@ -2594,8 +2594,8 @@ void DetailedMgr::buildMtx() {
                             } else {
                                 current += abs(grid_i->voltage()) /(1.0/via_condutance_up + 1.0/loadConductance);
                                 _vTPortCurr[netId][tPortId] += abs(grid_i->voltage()) /(1.0/via_condutance_up + 1.0/loadConductance);
-                                cerr << "net" << netId << ", tPort" << tPortId << ": voltage = " << grid_i->voltage();
-                                cerr << ", current = " << abs(grid_i->voltage()) /(1.0/via_condutance_up + 1.0/loadConductance) << endl;
+                                //cerr << "net" << netId << ", tPort" << tPortId << ": voltage = " << grid_i->voltage();
+                                //cerr << ", current = " << abs(grid_i->voltage()) /(1.0/via_condutance_up + 1.0/loadConductance) << endl;
                             }
                             if (layId < _db.numLayers()-1) {
                                 current += abs(grid_i->voltage() - _vGrid[layId+1][xId][yId]->voltage()) * via_condutance_up;

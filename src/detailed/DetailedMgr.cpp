@@ -1943,7 +1943,7 @@ size_t DetailedMgr::SmartGrow(size_t layId, size_t netId, int k){
         //sort 
         std::sort(NodeCurrent.begin(), NodeCurrent.end(), compareByCurrent);
 
-        Grid* r = new Grid(0,0);//new a pointer for later remove operation
+        Grid* r = new Grid(-1,-1);//new a pointer for later remove operation
         for(int i = 0; alreadyRemove < removeNum; i++){
             
             int gridId = NodeCurrent[i].second;
@@ -1993,7 +1993,7 @@ void DetailedMgr::SmartRefine(size_t layId, size_t netId, int k){
     int alreadyRemoved = 0;
 
     //remove k nodes
-    Grid* r = new Grid(0,0);//new a pointer for later remove operation
+    Grid* r = new Grid(-1,-1);//new a pointer for later remove operation
     for(int i = 0; i < NodeCurrent.size() && alreadyRemoved < k ; i++){
         int gridId = NodeCurrent[i].second;
         bool CanRemove = false;
@@ -2108,20 +2108,19 @@ void DetailedMgr::SPROUT(){
             // for(size_t tPortId = 0; tPortId < _vTPortCurr[netId].size();tPortId++){
             //     if(_vTPortCurr[netId][tPortId] < _db.vNet(netId)->targetPort(tPortId)->current()){
             //         double Error = (_db.vNet(netId)->targetPort(tPortId)->current() - _vTPortCurr[netId][tPortId]) / _db.vNet(netId)->targetPort(tPortId)->current();
-            //         if(Error < 0.5) DoRefine  = true;
+            //         if(Error < 0.05) DoRefine  = true;
             //         break;
             //     }
             //     if(_vTPortVolt[netId][tPortId] < _db.vNet(netId)->targetPort(tPortId)->voltage()){
             //         double Error = (_db.vNet(netId)->targetPort(tPortId)->voltage() - _vTPortVolt[netId][tPortId]) / (_db.vNet(netId)->targetPort(tPortId)->voltage());
-            //         if(Error < 0.5) DoRefine = true;
+            //         if(Error < 0.05) DoRefine = true;
             //         break;
             //     }
             // }
 
-            // if(DoRefine){
-            //     Area = 0;
-            //     for(size_t layId = 0; layId < _vNetGrid[netId].size();++layId) Area += _vNetGrid[netId][layId].size();
+            // if(DoRefine && canGrow){
             //     int r = Area/50;
+            //     //One iteration do 3 times refine
             //     for(int i = 0 ; i < 3 ; i++){
             //         SmartRefine(layId,netId,r);
             //     }
@@ -2139,7 +2138,7 @@ void DetailedMgr::SPROUT(){
         for(size_t tPortId = 0; tPortId < _vTPortCurr[netId].size();tPortId++){
             if(_vTPortCurr[netId][tPortId] < _db.vNet(netId)->targetPort(tPortId)->current()){
                 double Error = ((_db.vNet(netId)->targetPort(tPortId)->current() - _vTPortCurr[netId][tPortId]) / _db.vNet(netId)->targetPort(tPortId)->current());
-                if(Error > 0.009){
+                if(Error > 0.005){
                     ReachTarget = false;
                     target[netId] *= 1.2;
                     break;
@@ -2147,7 +2146,7 @@ void DetailedMgr::SPROUT(){
             }
             if(_vTPortVolt[netId][tPortId] < _db.vNet(netId)->targetPort(tPortId)->voltage()){
                 double Error = ((_db.vNet(netId)->targetPort(tPortId)->voltage() - _vTPortVolt[netId][tPortId]) / (_db.vNet(netId)->targetPort(tPortId)->voltage()));
-                if(Error > 0.009){
+                if(Error > 0.005){
                     ReachTarget = false;
                     target[netId] *= 1.2;
                     break;
@@ -2167,12 +2166,12 @@ void DetailedMgr::SPROUT(){
         for(size_t tPortId = 0; tPortId < _vTPortCurr[netId].size();tPortId++){
             if(_vTPortCurr[netId][tPortId] < _db.vNet(netId)->targetPort(tPortId)->current()){
                 double Error = (_db.vNet(netId)->targetPort(tPortId)->current() - _vTPortCurr[netId][tPortId]) / _db.vNet(netId)->targetPort(tPortId)->current();
-                if(Error > 0.009) AllReach = false;
+                if(Error > 0.005) AllReach = false;
                 break;
             }
             if(_vTPortVolt[netId][tPortId] < _db.vNet(netId)->targetPort(tPortId)->voltage()){
                 double Error = (_db.vNet(netId)->targetPort(tPortId)->voltage() - _vTPortVolt[netId][tPortId]) / (_db.vNet(netId)->targetPort(tPortId)->voltage());
-                if(Error > 0.009) AllReach = false;
+                if(Error > 0.005) AllReach = false;
                 break;
             }
         }
@@ -2243,4 +2242,53 @@ void DetailedMgr::writeColorMap_v2(const char* path, bool isVoltage) {
 
     printf("--- finish write color map ---\n");
     fclose(fp);
+}
+
+void DetailedMgr::RemoveIsolatedGrid(){
+    for(size_t netId=0; netId < _vNetGrid.size(); netId++){
+        for(size_t layId=0; layId<_vNetGrid[netId].size(); layId++){
+            Grid* r = new Grid(-1,-1);
+            for(size_t gridId = 0; gridId < _vNetGrid[netId][layId].size(); gridId++){
+                int Remove = 0;
+                Grid* grid = _vNetGrid[netId][layId][gridId];
+                int xId = grid->xId();
+                int yId = grid->yId();
+            
+                if (legal(xId+1, yId)) {
+                    Grid* rGrid = _vGrid[layId][xId+1][yId];
+                    if (rGrid->netId() == netId) {
+                        Remove += 1;
+                    }
+                }
+                if (legal(xId-1, yId)) {
+                    Grid* lGrid = _vGrid[layId][xId-1][yId];
+                    if (lGrid->netId() == netId) {
+                        Remove += 1;
+                    }
+                }
+                if (legal(xId, yId+1)) {
+                    Grid* uGrid = _vGrid[layId][xId][yId+1];
+                    if (uGrid->netId() == netId) {
+                        Remove += 1;
+                    }
+                }
+                if (legal(xId, yId-1)) {
+                    Grid* dGrid = _vGrid[layId][xId][yId-1];
+                    if (dGrid->netId() == netId) {
+                        Remove += 1;
+                    }
+                }
+                //Remove
+                if(Remove < 2){
+                    grid->setNetId(-1);//remove it from net
+                    grid->setOccupied(0);
+                    _vNetGrid[netId][layId][gridId] = r; 
+                }
+            }
+            for(size_t layId = 0; layId < _vNetGrid[netId].size();layId ++){
+                _vNetGrid[netId][layId].erase(std::remove(_vNetGrid[netId][layId].begin(),_vNetGrid[netId][layId].end(), r), _vNetGrid[netId][layId].end());
+            }
+            delete r;
+        }
+    }
 }

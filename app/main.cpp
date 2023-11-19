@@ -113,6 +113,7 @@ int main(int argc, char* argv[]){
     //detailedMgr.check();
 
     detailedMgr.SPROUT();
+    detailedMgr.RemoveIsolatedGrid();
     time(&end);
     //detailedMgr.plotGridMapVoltage();
     //detailedMgr.plotGridMapCurrent();

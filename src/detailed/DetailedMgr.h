@@ -112,6 +112,7 @@ class DetailedMgr {
         vector< vector< int > > boardOfInnerCircles; 
         void writeColorMap_v2(const char* path, bool isVoltage);
         vector< pair<double, double> > kMeansClustering(vector< pair<int,int> > vGrid, int numClusters, int numEpochs);
+        void RemoveIsolatedGrid();
         
     private:
         void clearNet(size_t layId, size_t netId);

@@ -98,8 +98,8 @@ class DetailedMgr {
         void synchronize();
         void addViaGrid();
         void addPortVia();
-        void buildSingleNetMtx(size_t netId , size_t numLayers);
-        void buildMtx(size_t numLayers);
+        void buildSingleNetMtx(size_t netId/* , size_t numLayers*/);
+        void buildMtx(/*size_t numLayers*/);
         double getResistance(Grid*, Grid*);
         void check();
         void fillInnerCircle(size_t layId, size_t netId);

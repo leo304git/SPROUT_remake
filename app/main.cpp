@@ -118,7 +118,7 @@ int main(int argc, char* argv[]){
     //detailedMgr.plotGridMapVoltage();
     //detailedMgr.plotGridMapCurrent();
     detailedMgr.plotGridMap();
-    detailedMgr.buildMtx(3);
+    detailedMgr.buildMtx();
     //time(&end);
     double time_used = double(end - start);
     int hour = 0, min = 0;

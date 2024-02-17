@@ -5,7 +5,6 @@ void Parser::testInitialize(double boardWidth, double boardHeight, double gridWi
     // double gridWidth = 40.0;
     // _db.setBoundary(15*gridWidth, 19*gridWidth);
     _db.setBoundary(boardWidth, boardHeight);
-    _db.setVIA16D8A24();
 
     _db.addMediumLayer("medium64", 1.524000e-02, 4.500000e+00, 3.500000e-02);
     _db.addMetalLayer("BOTTOM", 3.556000e-02, 5.959000e+07, 4.500000e+00);
@@ -20,7 +19,7 @@ void Parser::testInitialize(double boardWidth, double boardHeight, double gridWi
     _db.initNet(3);
 
     ViaCluster* viaCstr;
-    double currentBase = 160;
+    double currentBase = 150;
 
     // _vNet[0]
     _db.addCircleVia(2*gridWidth, 2*gridWidth, 0, ViaType::Source);
@@ -56,20 +55,37 @@ void Parser::testInitialize(double boardWidth, double boardHeight, double gridWi
     _db.addCircleVia(10*gridWidth, 3*gridWidth, 2, ViaType::Source);
     _db.addCircleVia(11*gridWidth, 3*gridWidth, 2, ViaType::Source);
     viaCstr = _db.clusterVia({16,17,18,19});
-    _db.addPort(1.7, currentBase, viaCstr);
-    // _db.addCircleVia(10*gridWidth, 11*gridWidth, 2, ViaType::Target);
-    // _db.addCircleVia(10*gridWidth, 12*gridWidth, 2, ViaType::Target);
-    // viaCstr = _db.clusterVia({20,21});
-    // _db.addPort(1.65, currentBase, viaCstr);
+    _db.addPort(1.7, 2*currentBase, viaCstr);
+    _db.addCircleVia(10*gridWidth, 11*gridWidth, 2, ViaType::Target);
+    _db.addCircleVia(10*gridWidth, 12*gridWidth, 2, ViaType::Target);
+    viaCstr = _db.clusterVia({20,21});
+    _db.addPort(1.65, currentBase, viaCstr);
     _db.addCircleVia(9*gridWidth, 17*gridWidth, 2, ViaType::Target);
     _db.addCircleVia(10*gridWidth, 17*gridWidth, 2, ViaType::Target);
     _db.addCircleVia(11*gridWidth, 17*gridWidth, 2, ViaType::Target);
-    viaCstr = _db.clusterVia({20,21,22});
+    viaCstr = _db.clusterVia({22,23,24});
     _db.addPort(1.5, currentBase, viaCstr);
 
     // Obstacle
     _db.addRectObstacle(1, 8*gridWidth, 12*gridWidth, 14*gridWidth, 15*gridWidth);
     _db.addRectObstacle(2, 2*gridWidth, 8*gridWidth, 6*gridWidth, 8*gridWidth);
+    // _db.addRectObstacle(0, 2*gridWidth, 6*gridWidth, 4*gridWidth, 6*gridWidth);
+    // _db.addRectObstacle(0, 2*gridWidth, 6*gridWidth, 9*gridWidth, 11*gridWidth);
+
+
+    // vector<Shape*> obs1;
+    // obs1.resize(1);
+    
+    // vector< pair<double, double>> obs1Coordinates;
+    // obs1Coordinates.resize(5);
+    // obs1Coordinates[0] = std::make_pair(3*gridWidth, 5*gridWidth);
+    // obs1Coordinates[1] = std::make_pair(6*gridWidth, 7*gridWidth);
+    // obs1Coordinates[2] = std::make_pair(6*gridWidth, 10*gridWidth);
+    // obs1Coordinates[3] = std::make_pair(5*gridWidth, 10*gridWidth);
+    // obs1Coordinates[4] = std::make_pair(1*gridWidth, 6*gridWidth);
+    // obs1[0] = new Polygon(obs1Coordinates, _plot);
+    // _db.addObstacle(3,  obs1);
+
 
     // area & via weight
     _db.setFlowWeight(0.5, 0.5);
@@ -159,9 +175,9 @@ void Parser::parse() {
     //     // cerr << "layer[" << layId << "] = " << _db.vMetalLayer(layId)->layName() << endl;
     //     // _db.vMetalLayer(layId)->print();
     // }
-    parseST();
     parseLayer();
     _db.setVIA16D8A24();
+    parseST();
 
 
     // parse shape
@@ -172,6 +188,7 @@ void Parser::parse() {
     // getline(_fin, data);
     // cerr << "before parseConnect: " << data << endl;
     parseConnect();
+    parseObstacle();
 
 }
 
@@ -615,6 +632,7 @@ void Parser::parseVia(string data) {
         getline(_fin, data);
         ss.str(data);
     }
+    // cerr << "parseVia end: " << data << endl;
 }
 
 void Parser::parseConnect() {
@@ -762,7 +780,11 @@ string Parser::toLineBegin(string word) {
     string word1;
     word1.assign(data, 0, word.size());
     while (word1 != word) {
-        _fin.ignore(numeric_limits<streamsize>::max(), '\n');
+        // cerr << "word1 = " << word1 << endl; 
+        // if (word1.substr(0,5) == "Patch") {
+        //     assert(false);
+        // }
+        // _fin.ignore(numeric_limits<streamsize>::max(), '\n');
         getline(_fin, data);
         // cerr << "data = " << data << endl;
         // ss.str("");
@@ -783,4 +805,30 @@ double Parser::extractDouble(stringstream& ss, int eraseLength) {
         word.pop_back();
     }
     return stod(word);
+}
+
+void Parser::parseObstacle(){
+    int numObstacle;
+    int Layer = 0;
+    _finOb >> numObstacle;
+    for(int i = 0 ; i < numObstacle; i ++){
+        _finOb >> Layer;
+        int numEdge;
+        _finOb >> numEdge;
+
+        vector<Shape*> obs1;
+        obs1.resize(1);
+        vector< pair<double, double>> obs1Coordinates;
+
+        for(int j = 0; j < numEdge ; j++){
+            double x = 0;
+            double y = 0;
+            _finOb >> x;
+            _finOb >> y;
+            obs1Coordinates.push_back(std::make_pair(x , y));
+            
+        }
+        obs1[0] = new Polygon(obs1Coordinates, _plot);
+        _db.addObstacle(Layer,  obs1);
+    }
 }

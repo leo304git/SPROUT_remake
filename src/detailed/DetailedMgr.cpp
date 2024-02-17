@@ -570,6 +570,10 @@ bool DetailedMgr::SingleNetAStar(size_t netId, size_t layId) {
         AStarRouter sRouter(_vGrid[layId], _vSGrid[netId][layId], _vTGrid[netId][layId][tPortId], _gridWidth);
         if (sRouter.BFS()) {
             CanRoute = true;
+            //set ploted///////
+            delete _Ploted[netId][layId][0];//because port 0 is source port
+            _Ploted[netId][layId][0] = _Ploted[netId][layId][tPortId+1];
+            ///////////////////
             for (size_t pGridId = 0; pGridId < sRouter.numPath(); ++ pGridId) {
                 Grid* grid = sRouter.path(pGridId);
                 if (grid->netId() == -1) {  // avoid pushing the same grid to _vNetGrid again
@@ -589,6 +593,10 @@ bool DetailedMgr::SingleNetAStar(size_t netId, size_t layId) {
             AStarRouter tRouter(_vGrid[layId], _vTGrid[netId][layId][tPortId], _vTGrid[netId][layId][tPortId1], _gridWidth);
             if (tRouter.BFS()) {
                 CanRoute = true;
+                //set ploted///////
+                delete _Ploted[netId][layId][tPortId1+1];
+                _Ploted[netId][layId][tPortId1+1] = _Ploted[netId][layId][tPortId+1];
+                ///////////////////
                 for (size_t pGridId = 0; pGridId < tRouter.numPath(); ++ pGridId) {
                     Grid* grid = tRouter.path(pGridId);
                     if (grid->netId() == -1) {
@@ -1865,8 +1873,9 @@ bool compareByCurrent(const std::pair<double, int>& a, const std::pair<double, i
 }
 
 
+
 size_t DetailedMgr::SmartGrow(size_t layId, size_t netId, int k){
-    cout << "###########Smart GROW###########" << endl;
+    //cout << "###########Smart GROW###########" << endl;
     //cout << "size of NetGrid after smartgrow : " << _vNetGrid[netId][layId].size() << endl;  
 
 
@@ -1970,9 +1979,6 @@ size_t DetailedMgr::SmartGrow(size_t layId, size_t netId, int k){
 
 }
 
-
-
-
 void DetailedMgr::SmartRefine(size_t layId, size_t netId, int k){
 
     cout << "###########Smart Refine###########" << endl;
@@ -2029,6 +2035,12 @@ void DetailedMgr::SmartRefine(size_t layId, size_t netId, int k){
     SmartGrow(layId, netId, alreadyRemoved);
 }
 
+
+//function for layer sortint
+bool compareByThickness(const std::pair<double, int>& a, const std::pair<double, int>& b) {
+    return a.first > b.first;
+}
+
 void DetailedMgr::SPROUT(){
     
     cout << "####SPROUT####"<<endl;
@@ -2043,6 +2055,18 @@ void DetailedMgr::SPROUT(){
         cout << "NET " << netId << " size : " << targetsize << endl; 
         target.push_back(targetsize);
     }
+
+    /////////////////routing layer order assign////////////////
+    vector<pair<double,int>> RLayer;
+    for(int layId = 0; layId < _vNetGrid[0].size(); layId ++){
+        pair<double,int> temp = make_pair(_db.vMetalLayer(layId)->thickness(),layId);
+        RLayer.push_back(temp);
+    }
+    std::sort(RLayer.begin(), RLayer.end(), compareByThickness);
+    cout << "order : ";
+    for(size_t i = 0; i < RLayer.size();++i){ cout <<  RLayer[i].second << " "; }
+    cout << endl;
+    ///////////////////////////////////////////////////////////
         
     /////////////////Initialize HasAStar///////////////////////
     vector<vector<bool>> HasAStar; //[netId][layId]
@@ -2071,8 +2095,9 @@ void DetailedMgr::SPROUT(){
         for(size_t layId = 0; layId < _vNetGrid[netId].size();++layId) Area += _vNetGrid[netId][layId].size();
         int k = Area/5;
 
-        for(size_t layId = 0; layId < _vNetGrid[netId].size();++layId){
-            cout << "#########LAYER " << layId << " ##########" << endl;
+        for(size_t i = 0; i < RLayer.size();++i){
+            size_t layId = RLayer[i].second;
+            //cout << "#########LAYER " << layId << " ##########" << endl;
 
             canGrow = true;
             //SmartGrow stage
@@ -2095,7 +2120,7 @@ void DetailedMgr::SPROUT(){
                 size_t grownum = SmartGrow(layId,netId,k);
                 //k = (int)(k/1.1);//隨便設一個遞減函數
                 Area += grownum;
-                cout << "GROW " << grownum << endl;
+                //cout << "GROW " << grownum << endl;
                 if(grownum == 0){
                     cout << "NO GROW" << endl;
                     canGrow = false;
@@ -2941,5 +2966,157 @@ void DetailedMgr::buildSingleNetMtx(size_t netId) {
         _vTPortVolt[netId][tPortId] = _vTPortCurr[netId][tPortId] * loadResistance;
         cerr << "net" << netId << " tPort" << tPortId << ": current = " << _vTPortCurr[netId][tPortId];
         cerr << ", voltage = " << _vTPortVolt[netId][tPortId] << endl;
+    }
+}
+
+
+void DetailedMgr::findPointList(){
+    cout << "***Start findpointList***" << endl;
+
+    //reset _Ploted
+    for(size_t netId = 0; netId < _db.numNets(); netId++){
+        for(size_t layId = 0; layId < _db.numLayers(); layId++){
+            for(size_t PortId = 0; PortId < _vNetPortGrid[netId].size(); PortId++){
+                *(_Ploted[netId][layId][PortId]) = false;
+            }
+        }
+    }
+    //clear List
+    _Netpolygon.clear();
+    //search each net
+    for(size_t netId = 0; netId < _db.numNets(); netId++){
+        //search each layer
+        vector<vector<vector<pair<double,double>>>> Net_Temp;
+        for(size_t layId = 0; layId < _db.numLayers(); layId++){
+            vector<vector<pair<double,double>>> Layer_Temp;
+            for(size_t PortId = 0; PortId < _vNetPortGrid[netId].size(); PortId++){
+                if(*(_Ploted[netId][layId][PortId]) == true) continue;
+                //PortId = 0 -> source port, PortId > 0 -> Target port
+                *(_Ploted[netId][layId][PortId]) = true;
+
+                //take gridId 0 to start
+                int x = _vNetPortGrid[netId][PortId][0].first;
+                int y = _vNetPortGrid[netId][PortId][0].second;
+
+                while(_vGrid[layId][x][y]->netId() == netId){
+                    y++;
+                    if(y == _vGrid[layId][x].size()) break;
+                }
+                int startX = x, startY = y;
+                
+                int dir = 2; //dir1 -> up, dir2 -> right, dir3 -> down, dir4-> left
+                vector<pair<double,double>> contour_temp;
+                contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                do{ 
+                    //cout << "x : " << x << " , y : " << y <<" , dir : " << dir<< endl;
+                    //direction is up
+                    if(dir == 1){
+                        Grid* left = (x==0)? nullptr : _vGrid[layId][x-1][y];
+                        Grid* curr = _vGrid[layId][x][y];
+                        if(curr->netId() == netId && (left == nullptr || left->netId() != netId)){
+                            y++;
+                            if(y == _vGrid[layId][x].size()){
+                                dir = 2;
+                                contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                            }
+                        }
+                        else if(curr->netId() != netId){
+                            dir = 2;
+                            contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                        }
+                        else if(left->netId() == netId){
+                            dir = 4;
+                            contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                        }
+                    }
+                    //direction is right
+                    else if(dir == 2){
+                        Grid* up = (y == _vGrid[layId][x].size())? nullptr : _vGrid[layId][x][y];
+                        Grid* curr = _vGrid[layId][x][y-1];
+                        if(curr->netId() == netId && (up == nullptr || up->netId() != netId)){
+                            x++;
+                            if(x == _vGrid[layId].size()){
+                                dir = 3;
+                                contour_temp.push_back(make_pair((x)*_gridWidth, (y)*_gridWidth));
+                            }
+                        }
+                        else if( curr->netId() != netId){
+                            dir = 3;
+                            contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                        }
+                        else if(up->netId() == netId){
+                            dir = 1;
+                            contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                        }
+                    }
+                    //direction is down
+                    else if(dir == 3){
+                        Grid* right = (x == _vGrid[layId].size())? nullptr : _vGrid[layId][x][y-1];
+                        Grid* curr = _vGrid[layId][x-1][y-1];
+                        if(curr->netId() == netId && (right == nullptr || right->netId() != netId)){
+                            y--;
+                            if(y == 0){
+                                dir = 4;
+                                contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                            }
+                        }
+                        else if(curr->netId() != netId){
+                            dir = 4;
+                            contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                        }
+                        else if(right->netId() == netId){
+                            dir = 2;
+                            contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                        }
+                    }
+                    //direction is left
+                    else if(dir == 4){
+                        Grid* down = (y == 0)? nullptr : _vGrid[layId][x-1][y-1];
+                        Grid* curr = _vGrid[layId][x-1][y];
+                        if(curr->netId() == netId && (down == nullptr || down->netId() != netId)){
+                            x--;
+                            if(x == 0){
+                                dir = 1;
+                                contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                            }
+                        }
+                        else if(curr->netId() != netId){
+                            dir = 1;
+                            contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                        }
+                        else if(down->netId() == netId){
+                            dir = 3;
+                            contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                        }
+                    }
+                }while(x != startX || y != startY);
+                Layer_Temp.push_back(contour_temp);
+            }
+        Net_Temp.push_back(Layer_Temp);
+        }
+    _Netpolygon.push_back(Net_Temp);
+    }
+}
+
+
+void DetailedMgr::OutputTest(){
+    for(size_t netId = 0; netId < _db.numNets(); netId++){
+        //cout <<"output netId : " << netId << " , ";
+        //search each layer
+        for(size_t layId = 0; layId < _db.numLayers(); layId++){
+            //cout << "layId : "<<layId << " , ";
+            for(size_t polygonId = 0; polygonId < _Netpolygon[netId][layId].size(); polygonId++){
+                //cout << "polyId : "<<polygonId << " : "<<endl;
+                vector< pair<double, double> > vVtx;
+                for(size_t pointId = 0; pointId < _Netpolygon[netId][layId][polygonId].size(); ++ pointId){
+                    double x = _Netpolygon[netId][layId][polygonId][pointId].first;
+                    double y = _Netpolygon[netId][layId][polygonId][pointId].second;
+                    vVtx.push_back(make_pair(x,y));
+                    //cout << "x: " << x << " y: " << y << endl;
+                }
+                Polygon* p = new Polygon(vVtx, _plot);
+                p->plot(SVGPlotColor::black, layId);
+            }
+        }
     }
 }

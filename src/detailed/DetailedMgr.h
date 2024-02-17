@@ -83,6 +83,19 @@ class DetailedMgr {
                 }
                 _vNetPortGrid.push_back(temp);
             }
+            // _Ploted
+            for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
+                vector< vector< bool* > > vNetPloted;
+                for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
+                    vector<bool*> vLayPloted;
+                    for(size_t portId = 0; portId < _db.vNet(netId)->numTPorts()+1; ++portId){
+                        bool* ploted = new bool(false);
+                        vLayPloted.push_back(ploted);
+                    }
+                    vNetPloted.push_back(vLayPloted);
+                }
+                _Ploted.push_back(vNetPloted);
+            }
         }
         ~DetailedMgr() {}
 
@@ -113,7 +126,9 @@ class DetailedMgr {
         void writeColorMap_v2(const char* path, bool isVoltage);
         vector< pair<double, double> > kMeansClustering(vector< pair<int,int> > vGrid, int numClusters, int numEpochs);
         void RemoveIsolatedGrid();
-        
+        void findPointList();
+        void OutputTest();
+
     private:
         void clearNet(size_t layId, size_t netId);
         void ResetAllNets();
@@ -130,6 +145,8 @@ class DetailedMgr {
         size_t _numYs;
         vector< vector< double > > _vTPortVolt;     // index = [netId] [netTportId], record the target port voltage during simulation
         vector< vector< double > > _vTPortCurr;     // index = [netId] [netTportId], record the target port current during simulation
+        vector< vector< vector< vector< pair<double,double> > > > > _Netpolygon; // index = [netId] [layId] [polygonId] [pointId]
+        vector< vector <vector<bool*>>> _Ploted; // index = [netId][layId][PortId]
 };
 
 #endif

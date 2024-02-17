@@ -10,6 +10,7 @@ using namespace std;
 int main(int argc, char* argv[]){
 
     ifstream finST, fin;
+    ifstream finOb;
     ofstream fout;
     finST.open(argv[1], ifstream::in);
     if (finST.is_open()) {
@@ -28,6 +29,12 @@ int main(int argc, char* argv[]){
         cout << "output file is opened successfully" << endl;
     } else {
         cerr << "Error opening output file" << endl;
+    }
+    finOb.open(argv[4], ifstream::in);
+    if (finOb.is_open()) {
+        cout << "input file (obstacle) is opened successfully" << endl;
+    } else {
+        cerr << "Error opening input file" << endl;
     }
     // ofstream fout1;
     // fout1.open(argv[2], ofstream::out);
@@ -53,10 +60,10 @@ int main(int argc, char* argv[]){
     double offsetY = 40;
 
     // SVGPlot plot(fout, boardWidth, boardHeight, gridWidth, numLayers, 6.0);
-    SVGPlot plot(fout, boardWidth, boardHeight, gridWidth, numLayers, 10.0);
+    SVGPlot plot(fout, boardWidth, boardHeight, gridWidth, numLayers, 6.0);
     DB db(plot);
     db.setBoundary(boardWidth, boardHeight);
-    Parser parser(finST, fin, db, offsetX, offsetY, plot);
+    Parser parser(finST, fin, finOb, db, offsetX, offsetY, plot);
     parser.parse();
 
     //time
@@ -73,7 +80,7 @@ int main(int argc, char* argv[]){
 
     // db.print();
     
-    // GlobalMgr globalMgr(db, plot);
+    //GlobalMgr globalMgr(db, plot);
     
 
     // replace this line with a real OASG building function
@@ -115,10 +122,13 @@ int main(int argc, char* argv[]){
     detailedMgr.SPROUT();
     detailedMgr.RemoveIsolatedGrid();
     time(&end);
+    detailedMgr.plotDB();
     //detailedMgr.plotGridMapVoltage();
     //detailedMgr.plotGridMapCurrent();
-    detailedMgr.plotGridMap();
-    detailedMgr.buildMtx();
+    //detailedMgr.plotGridMap();
+    detailedMgr.findPointList();
+    detailedMgr.OutputTest();
+    //detailedMgr.buildMtx();
     //time(&end);
     double time_used = double(end - start);
     int hour = 0, min = 0;
@@ -132,8 +142,8 @@ int main(int argc, char* argv[]){
     }
     cout << "Time : " << hour << " hours " << min <<" mins "<< fixed << setprecision(5) << time_used << " sec " << endl; 
 
-    detailedMgr.writeColorMap_v2("../../exp/output/voltageColorMap.txt", 1);
-    detailedMgr.writeColorMap_v2("../../exp/output/currentColorMap.txt", 0);
+    //detailedMgr.writeColorMap_v2("../../exp/output/voltageColorMap.txt", 1);
+    //detailedMgr.writeColorMap_v2("../../exp/output/currentColorMap.txt", 0);
 
     // for (size_t layId = 0; layId < db.numLayers(); ++ layId) {
     //     for (size_t netId = 0; netId < db.numNets(); ++netId){
@@ -147,7 +157,7 @@ int main(int argc, char* argv[]){
     // //detailedMgr.plotGridMap();
     // detailedMgr.plotGridMapCurrent();
 
-    // globalMgr.plotDB();
+    //globalMgr.plotDB();
 
 
     // mgr.genRGraph();

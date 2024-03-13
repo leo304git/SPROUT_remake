@@ -2063,8 +2063,11 @@ void DetailedMgr::SPROUT(){
         RLayer.push_back(temp);
     }
     std::sort(RLayer.begin(), RLayer.end(), compareByThickness);
-    cout << "order : ";
-    for(size_t i = 0; i < RLayer.size();++i){ cout <<  RLayer[i].second << " "; }
+    cout << "order : "<<endl;
+    for(size_t i = 0; i < RLayer.size();++i){
+        cout <<  RLayer[i].second << " thickness = " << RLayer[i].first << endl; 
+    }
+
     cout << endl;
     ///////////////////////////////////////////////////////////
         
@@ -2096,6 +2099,7 @@ void DetailedMgr::SPROUT(){
         int k = Area/5;
 
         for(size_t i = 0; i < RLayer.size();++i){
+           
             size_t layId = RLayer[i].second;
             //cout << "#########LAYER " << layId << " ##########" << endl;
 
@@ -3006,7 +3010,7 @@ void DetailedMgr::findPointList(){
                 
                 int dir = 2; //dir1 -> up, dir2 -> right, dir3 -> down, dir4-> left
                 vector<pair<double,double>> contour_temp;
-                contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                contour_temp.push_back(make_pair(x*_gridWidth,y*_gridWidth));
                 do{ 
                     //cout << "x : " << x << " , y : " << y <<" , dir : " << dir<< endl;
                     //direction is up
@@ -3017,16 +3021,16 @@ void DetailedMgr::findPointList(){
                             y++;
                             if(y == _vGrid[layId][x].size()){
                                 dir = 2;
-                                contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                                contour_temp.push_back(make_pair(x*_gridWidth,y*_gridWidth));
                             }
                         }
                         else if(curr->netId() != netId){
                             dir = 2;
-                            contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                            contour_temp.push_back(make_pair(x*_gridWidth,y*_gridWidth));
                         }
                         else if(left->netId() == netId){
                             dir = 4;
-                            contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                            contour_temp.push_back(make_pair(x*_gridWidth,y*_gridWidth));
                         }
                     }
                     //direction is right
@@ -3042,11 +3046,11 @@ void DetailedMgr::findPointList(){
                         }
                         else if( curr->netId() != netId){
                             dir = 3;
-                            contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                            contour_temp.push_back(make_pair(x*_gridWidth,y*_gridWidth));
                         }
                         else if(up->netId() == netId){
                             dir = 1;
-                            contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                            contour_temp.push_back(make_pair(x*_gridWidth,y*_gridWidth));
                         }
                     }
                     //direction is down
@@ -3057,16 +3061,16 @@ void DetailedMgr::findPointList(){
                             y--;
                             if(y == 0){
                                 dir = 4;
-                                contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                                contour_temp.push_back(make_pair(x*_gridWidth,y*_gridWidth));
                             }
                         }
                         else if(curr->netId() != netId){
                             dir = 4;
-                            contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                            contour_temp.push_back(make_pair(x*_gridWidth,y*_gridWidth));
                         }
                         else if(right->netId() == netId){
                             dir = 2;
-                            contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                            contour_temp.push_back(make_pair(x*_gridWidth,y*_gridWidth));
                         }
                     }
                     //direction is left
@@ -3077,16 +3081,16 @@ void DetailedMgr::findPointList(){
                             x--;
                             if(x == 0){
                                 dir = 1;
-                                contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                                contour_temp.push_back(make_pair(x*_gridWidth,y*_gridWidth));
                             }
                         }
                         else if(curr->netId() != netId){
                             dir = 1;
-                            contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                            contour_temp.push_back(make_pair(x*_gridWidth,y*_gridWidth));
                         }
                         else if(down->netId() == netId){
                             dir = 3;
-                            contour_temp.push_back(make_pair(x*_gridWidth, y*_gridWidth));
+                            contour_temp.push_back(make_pair(x*_gridWidth,y*_gridWidth));
                         }
                     }
                 }while(x != startX || y != startY);
@@ -3112,11 +3116,381 @@ void DetailedMgr::OutputTest(){
                     double x = _Netpolygon[netId][layId][polygonId][pointId].first;
                     double y = _Netpolygon[netId][layId][polygonId][pointId].second;
                     vVtx.push_back(make_pair(x,y));
-                    //cout << "x: " << x << " y: " << y << endl;
+                    cout << "x: " << x << " y: " << y << endl;
                 }
                 Polygon* p = new Polygon(vVtx, _plot);
                 p->plot(SVGPlotColor::black, layId);
             }
         }
     }
+}
+
+void DetailedMgr::OutputFile(ifstream& fin, ofstream& fout){
+    cout << "Start writing output file" << endl;
+    size_t layId = 0;
+    size_t polygonID = 1;
+    bool Remove = false;
+
+    vector<string> modifiedLines;
+    string line;
+
+    while (getline(fin, line)) {
+        //find layer
+        if (line.find(".Shape") == 0) {
+            modifiedLines.push_back(line);
+            size_t pos = line.find("Shape$");
+            if (pos != std::string::npos) {
+                istringstream iss(line.substr(pos + 6));
+                string layerName;
+                iss >> layerName;
+                //cout << "Layer : " << layerName << endl;
+                //need layname2Id
+                layId = _db.layName2Id(layerName);
+            }
+            Remove = false;
+        } 
+        //find polygon
+        else if(line.find("Polygon") == 0){
+            string name;
+            size_t num_pos = line.find("::");
+            size_t color_pos = line.find("Color");
+
+            if (num_pos != string::npos && color_pos != string::npos){
+                //find name first 會在::後面 以及 Color前面兩個位置
+                name = line.substr(num_pos+2, color_pos-2-(num_pos+2));
+                //search net
+                bool Searched = false;
+                for(size_t netId = 0; netId < _db.numNets();++netId){
+                    if(name == _db.vNetName(netId)){
+                        Searched = true;
+                        break;
+                    }
+                } 
+                //不是我們要的Net
+                if(!Searched){
+                    string polygon_num = to_string(polygonID);
+                    //reset the number of polygon
+                    line.replace(7, num_pos - 7, polygon_num);
+                    modifiedLines.push_back(line);
+                    polygonID ++;
+                    Remove = false;
+                }
+                //是要刪除的部分
+                else{
+                    Remove = true;
+                }
+            }
+        }
+        //others info, don't modify
+        else if(line.find(".EndShape") == 0){
+            //要把所有net補上
+            for(size_t netId = 0; netId < _db.numNets();++netId){
+                for(size_t polyId = 0; polyId < _Netpolygon[netId][layId].size(); polyId++){
+                    // + 的部分
+                    string name = _db.vNetName(netId);
+                    ostringstream oss;
+                    oss << "Polygon";
+                    string polygon_num = to_string(polygonID);
+                    polygonID++;
+                    oss << polygon_num << "::"<< name << "+ Color = " << _plot.vId2Color(netId) << "   ";
+                    //first two points 先處理前兩個點
+                    int expX = 0;//暫時設這樣
+                    int expY = 0;
+                    double point1x = _Netpolygon[netId][layId][polyId][0].first;
+                    double point1y = _Netpolygon[netId][layId][polyId][0].second;
+                    while(point1x >= 10){
+                        point1x /= 10;
+                        expX ++;
+                    }
+                    while(point1y >= 10){
+                        point1y /= 10;
+                        expY ++;
+                    }
+                    oss << fixed << setprecision(6) << point1x << "e+0" << to_string(expX) << "mm ";
+                    oss << fixed << setprecision(6) << point1y << "e+0" << to_string(expY) << "mm ";
+
+                    expX = 0;
+                    expY = 0;
+                    point1x = _Netpolygon[netId][layId][polyId][1].first;
+                    point1y = _Netpolygon[netId][layId][polyId][1].second;
+                    while(point1x >= 10){
+                        point1x /= 10;
+                        expX ++;
+                    }
+                    while(point1y >= 10){
+                        point1y /= 10;
+                        expY ++;
+                    }
+                    oss << fixed << setprecision(6) << point1x << "e+0" << to_string(expX) << "mm ";
+                    oss << fixed << setprecision(6) << point1y << "e+0" << to_string(expY) << "mm ";
+                    string addLine = oss.str();
+                    modifiedLines.push_back(addLine);
+                    //後續是剩下的點，每兩個要一個+
+                    ostringstream the_rest;
+                    for(size_t pointId = 2; pointId < _Netpolygon[netId][layId][polyId].size(); pointId++){
+                        if(pointId%2 == 0){
+                            the_rest << "+   ";
+                            expX = 0;
+                            expY = 0;
+                            point1x = _Netpolygon[netId][layId][polyId][pointId].first;
+                            point1y = _Netpolygon[netId][layId][polyId][pointId].second;
+                            while(point1x >= 10){
+                                point1x /= 10;
+                                expX ++;
+                            }
+                            while(point1y >= 10){
+                                point1y /= 10;
+                                expY ++;
+                            }
+                            the_rest << fixed << setprecision(6) << point1x << "e+0" << to_string(expX) << "mm ";
+                            the_rest << fixed << setprecision(6) << point1y << "e+0" << to_string(expY) << "mm ";
+                            //剛好是最後一個
+                            if(pointId == _Netpolygon[netId][layId][polyId].size() - 1){
+                                string temp = the_rest.str();
+                                modifiedLines.push_back(temp);
+                                the_rest.str("");
+                            }
+                        }
+                        else if(pointId%2 == 1){
+                            expX = 0;
+                            expY = 0;
+                            point1x = _Netpolygon[netId][layId][polyId][pointId].first;
+                            point1y = _Netpolygon[netId][layId][polyId][pointId].second;
+                            while(point1x >= 10){
+                                point1x /= 10;
+                                expX ++;
+                            }
+                            while(point1y >= 10){
+                                point1y /= 10;
+                                expY ++;
+                            }
+                            the_rest << fixed << setprecision(6) << point1x << "e+0" << to_string(expX) << "mm ";
+                            the_rest << fixed << setprecision(6) << point1y << "e+0" << to_string(expY) << "mm ";
+                            string temp = the_rest.str();
+                            modifiedLines.push_back(temp);
+                            the_rest.str("");
+                        }
+                    }
+                    //-的部分,判斷是否需要挖掉
+                    //先定義新的Shape
+                    Polygon* p = new Polygon(_Netpolygon[netId][layId][polyId], _plot);
+                    //先看其他net
+                    for(size_t T_netId = 0; T_netId < _db.numNets(); T_netId ++){
+                        if(netId != T_netId){
+                            for(size_t T_polyId = 0; T_polyId < _Netpolygon[T_netId][layId].size(); T_polyId++){
+                                //抓一個點就好
+                                double T_pointX = _Netpolygon[T_netId][layId][T_polyId][0].first;
+                                double T_pointY = _Netpolygon[T_netId][layId][T_polyId][0].second;
+                                if(p->enclose(T_pointX,T_pointY)){
+                                    oss.str(""); 
+                                    oss << "Polygon";
+                                    polygon_num = to_string(polygonID);
+                                    polygonID++;
+                                    oss << polygon_num << "::+"<< name << "- Color = " << _plot.vId2Color(netId) << "   ";
+                                    //寫入其他點
+                                    //first two points 先處理前兩個點
+                                    expX = 0;//暫時設這樣
+                                    expY = 0;
+                                    point1x = _Netpolygon[T_netId][layId][T_polyId][0].first;
+                                    point1y = _Netpolygon[T_netId][layId][T_polyId][0].second;
+                                    while(point1x >= 10){
+                                        point1x /= 10;
+                                        expX ++;
+                                    }
+                                    while(point1y >= 10){
+                                        point1y /= 10;
+                                        expY ++;
+                                    }
+                                    oss << fixed << setprecision(6) << point1x << "e+0" << to_string(expX) << "mm ";
+                                    oss << fixed << setprecision(6) << point1y << "e+0" << to_string(expY) << "mm ";
+
+                                    expX = 0;
+                                    expY = 0;
+                                    point1x = _Netpolygon[T_netId][layId][T_polyId][1].first;
+                                    point1y = _Netpolygon[T_netId][layId][T_polyId][1].second;
+                                    while(point1x >= 10){
+                                        point1x /= 10;
+                                        expX ++;
+                                    }
+                                    while(point1y >= 10){
+                                        point1y /= 10;
+                                        expY ++;
+                                    }
+                                    oss << fixed << setprecision(6) << point1x << "e+0" << to_string(expX) << "mm ";
+                                    oss << fixed << setprecision(6) << point1y << "e+0" << to_string(expY) << "mm ";
+                                    addLine = oss.str();
+                                    modifiedLines.push_back(addLine);
+                                    //後續是剩下的點，每兩個要一個+
+                                    the_rest.str("");
+                                    for(size_t pointId = 2; pointId < _Netpolygon[netId][layId][polyId].size(); pointId++){
+                                        if(pointId%2 == 0){
+                                            the_rest << "+   ";
+                                            expX = 0;
+                                            expY = 0;
+                                            point1x = _Netpolygon[T_netId][layId][T_polyId][pointId].first;
+                                            point1y = _Netpolygon[T_netId][layId][T_polyId][pointId].second;
+                                            while(point1x >= 10){
+                                                point1x /= 10;
+                                                expX ++;
+                                            }
+                                            while(point1y >= 10){
+                                                point1y /= 10;
+                                                expY ++;
+                                            }
+                                            the_rest << fixed << setprecision(6) << point1x << "e+0" << to_string(expX) << "mm ";
+                                            the_rest << fixed << setprecision(6) << point1y << "e+0" << to_string(expY) << "mm ";
+                                            //剛好是最後一個
+                                            if(pointId == _Netpolygon[T_netId][layId][T_polyId].size() - 1){
+                                                string temp = the_rest.str();
+                                                modifiedLines.push_back(temp);
+                                                the_rest.str("");
+                                            }
+                                        }
+                                        else if(pointId%2 == 1){
+                                            expX = 0;
+                                            expY = 0;
+                                            point1x = _Netpolygon[T_netId][layId][T_polyId][pointId].first;
+                                            point1y = _Netpolygon[T_netId][layId][T_polyId][pointId].second;
+                                            while(point1x >= 10){
+                                                point1x /= 10;
+                                                expX ++;
+                                            }
+                                            while(point1y >= 10){
+                                                point1y /= 10;
+                                                expY ++;
+                                            }
+                                            the_rest << fixed << setprecision(6) << point1x << "e+0" << to_string(expX) << "mm ";
+                                            the_rest << fixed << setprecision(6) << point1y << "e+0" << to_string(expY) << "mm ";
+                                            string temp = the_rest.str();
+                                            modifiedLines.push_back(temp);
+                                            the_rest.str("");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    //其他obstacle
+                    for (size_t obsId = 0; obsId < _db.vMetalLayer(layId)->numObstacles(); ++ obsId) {
+                        Obstacle* obs = _db.vMetalLayer(layId)->vObstacle(obsId);
+                        for (size_t shapeId = 0; shapeId < obs->numShapes(); ++ shapeId) {
+                            //同樣先抓一個點
+                            double T_pointX = obs->vShape(shapeId)->bPolygonX(0);//取vtxId = 0
+                            double T_pointY = obs->vShape(shapeId)->bPolygonY(0);
+                            if(p->enclose(T_pointX,T_pointY)){
+                                oss.str(""); 
+                                oss << "Polygon";
+                                polygon_num = to_string(polygonID);
+                                polygonID++;
+                                oss << polygon_num << "::+"<< name << "- Color = " << _plot.vId2Color(netId) << "   ";
+                                //寫入其他點
+                                //first two points 先處理前兩個點
+                                expX = 0;//暫時設這樣
+                                expY = 0;
+                                point1x = obs->vShape(shapeId)->bPolygonX(0);
+                                point1y = obs->vShape(shapeId)->bPolygonY(0);
+                                while(point1x >= 10){
+                                    point1x /= 10;
+                                    expX ++;
+                                }
+                                while(point1y >= 10){
+                                    point1y /= 10;
+                                    expY ++;
+                                }
+                                oss << fixed << setprecision(6) << point1x << "e+0" << to_string(expX) << "mm ";
+                                oss << fixed << setprecision(6) << point1y << "e+0" << to_string(expY) << "mm ";
+
+                                expX = 0;
+                                expY = 0;
+                                point1x = obs->vShape(shapeId)->bPolygonX(1);
+                                point1y = obs->vShape(shapeId)->bPolygonY(1);
+                                while(point1x >= 10){
+                                    point1x /= 10;
+                                    expX ++;
+                                }
+                                while(point1y >= 10){
+                                    point1y /= 10;
+                                    expY ++;
+                                }
+                                oss << fixed << setprecision(6) << point1x << "e+0" << to_string(expX) << "mm ";
+                                oss << fixed << setprecision(6) << point1y << "e+0" << to_string(expY) << "mm ";
+                                addLine = oss.str();
+                                modifiedLines.push_back(addLine);
+                                //後續是剩下的點，每兩個要一個+
+                                the_rest.str("");
+                                for(size_t vtxId = 2; vtxId < obs->vShape(shapeId)->numBPolyVtcs(); ++ vtxId){
+                                    if(vtxId%2 == 0){
+                                        the_rest << "+   ";
+                                        expX = 0;
+                                        expY = 0;
+                                        point1x =  obs->vShape(shapeId)->bPolygonX(vtxId);
+                                        point1y =  obs->vShape(shapeId)->bPolygonY(vtxId);
+                                        while(point1x >= 10){
+                                            point1x /= 10;
+                                            expX ++;
+                                        }
+                                        while(point1y >= 10){
+                                            point1y /= 10;
+                                            expY ++;
+                                        }
+                                        the_rest << fixed << setprecision(6) << point1x << "e+0" << to_string(expX) << "mm ";
+                                        the_rest << fixed << setprecision(6) << point1y << "e+0" << to_string(expY) << "mm ";
+                                        //剛好是最後一個
+                                        if(vtxId == obs->vShape(shapeId)->numBPolyVtcs() - 1){
+                                            string temp = the_rest.str();
+                                            modifiedLines.push_back(temp);
+                                            the_rest.str("");
+                                        }
+                                    }
+                                    else if(vtxId%2 == 1){
+                                        expX = 0;
+                                        expY = 0;
+                                        point1x =  obs->vShape(shapeId)->bPolygonX(vtxId);
+                                        point1y =  obs->vShape(shapeId)->bPolygonY(vtxId);
+                                        while(point1x >= 10){
+                                            point1x /= 10;
+                                            expX ++;
+                                        }
+                                        while(point1y >= 10){
+                                            point1y /= 10;
+                                            expY ++;
+                                        }
+                                        the_rest << fixed << setprecision(6) << point1x << "e+0" << to_string(expX) << "mm ";
+                                        the_rest << fixed << setprecision(6) << point1y << "e+0" << to_string(expY) << "mm ";
+                                        string temp = the_rest.str();
+                                        modifiedLines.push_back(temp);
+                                        the_rest.str("");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                //判斷完畢，清掉指標 (之後優化可以額外寫一個vector存這些新的shape指標，就不用每次判斷都要new一個新的)
+                delete p;
+                }
+            
+            } 
+            //最後補回.Endshape
+            modifiedLines.push_back(".EndShape");
+            Remove = false;
+        }
+        else if(line.find("+") == 0){
+            //不需要Remove的話就寫回去
+            if(!Remove){
+                modifiedLines.push_back(line);
+            }
+        }
+        else{
+            modifiedLines.push_back(line);
+            Remove = false;
+        }
+    }
+    
+    
+    for (const auto& modifiedLine : modifiedLines) {
+        fout << modifiedLine << '\n';
+    }
+
+    cout << "Finish writing output file"<< endl;
 }

@@ -12,6 +12,7 @@ int main(int argc, char* argv[]){
     ifstream finST, fin;
     ifstream finOb;
     ofstream fout;
+    ofstream file_output;
     finST.open(argv[1], ifstream::in);
     if (finST.is_open()) {
         cout << "input file (st components) is opened successfully" << endl;
@@ -36,6 +37,13 @@ int main(int argc, char* argv[]){
     } else {
         cerr << "Error opening input file" << endl;
     }
+    file_output.open(argv[5], ofstream::out);
+    if (file_output.is_open()) {
+        cout << "output file is opened successfully" << endl;
+    } else {
+        cerr << "Error opening output file" << endl;
+    }
+    
     // ofstream fout1;
     // fout1.open(argv[2], ofstream::out);
     // if (fout1.is_open()) {
@@ -52,12 +60,35 @@ int main(int argc, char* argv[]){
     // double boardWidth = 50*gridWidth;
     // double boardHeight = 15*gridWidth;
     // size_t numLayers = 12;
+    //case1
     double gridWidth = 1;
     double boardWidth = 75*gridWidth;
     double boardHeight = 40*gridWidth;
-    size_t numLayers = 4;
+    size_t numLayers = 12;
     double offsetX = 40;
     double offsetY = 40;
+    //case2
+    // double gridWidth = 1;
+    // double boardWidth = 100*gridWidth;
+    // double boardHeight = 70*gridWidth;
+    // size_t numLayers = 4;
+    // double offsetX = 95;
+    // double offsetY = 45;
+    //case3
+    // double gridWidth = 1;
+    // double boardWidth = 100*gridWidth;
+    // double boardHeight = 65*gridWidth;
+    // size_t numLayers = 4;
+    // double offsetX = 25;
+    // double offsetY = 20;
+    //case4
+    // double gridWidth = 1;
+    // double boardWidth = 80*gridWidth;
+    // double boardHeight = 55*gridWidth;
+    // size_t numLayers = 4;
+    // double offsetX = 120;
+    // double offsetY = 10;
+
 
     // SVGPlot plot(fout, boardWidth, boardHeight, gridWidth, numLayers, 6.0);
     SVGPlot plot(fout, boardWidth, boardHeight, gridWidth, numLayers, 6.0);
@@ -119,15 +150,29 @@ int main(int argc, char* argv[]){
     //detailedMgr.buildMtx(1);
     //detailedMgr.check();
 
-    detailedMgr.SPROUT();
-    detailedMgr.RemoveIsolatedGrid();
+    //detailedMgr.SPROUT();
+    //detailedMgr.RemoveIsolatedGrid();
     time(&end);
-    detailedMgr.plotDB();
+    //detailedMgr.plotDB();
     //detailedMgr.plotGridMapVoltage();
     //detailedMgr.plotGridMapCurrent();
     //detailedMgr.plotGridMap();
     detailedMgr.findPointList();
-    detailedMgr.OutputTest();
+    //detailedMgr.OutputTest();
+    ////output////
+    //ifstream file_input;
+    //ofstream file_output;
+
+    // file_input.open(argv[5], ifstream::in);
+    // if (file_input.is_open()) {
+    //     cout << "input file is opened successfully" << endl;
+    // } else {
+    //     cerr << "Error opening input file" << endl;
+    // }
+    
+    fin.seekg(0, std::ios::beg);
+    detailedMgr.OutputFile(fin,file_output);
+    /////////////////
     //detailedMgr.buildMtx();
     //time(&end);
     double time_used = double(end - start);
@@ -152,9 +197,8 @@ int main(int argc, char* argv[]){
     // }    
     // // detailedMgr.fillInnerCircle(0, 1);
     
-    // detailedMgr.SPROUT();
 
-    // //detailedMgr.plotGridMap();
+    //detailedMgr.plotGridMap();
     // detailedMgr.plotGridMapCurrent();
 
     //globalMgr.plotDB();

@@ -204,6 +204,7 @@ void Parser::parseST() {
         string netName;
         _finST >> netName;
         _vNetName.push_back(netName);
+        _db.addvNetName(netName);
         // cerr << "netName = " << netName << endl;
 
         _finST >> word;
@@ -344,6 +345,7 @@ void Parser::parseLayer() {
     _db.reverseMetalLayers();
     for (int layId = 0; layId < _db.numLayers(); ++ layId) {
         _layName2Id[_db.vMetalLayer(layId)->layName()] = layId;
+        _db.addlayName2Id(_db.vMetalLayer(layId)->layName(), layId);
         // cerr << "layer[" << layId << "] = " << _db.vMetalLayer(layId)->layName() << endl;
         // _db.vMetalLayer(layId)->print();
     }

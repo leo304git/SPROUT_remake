@@ -83,6 +83,15 @@ class DetailedMgr {
                 }
                 _vNetPortGrid.push_back(temp);
             }
+            //vNetPolygon
+            for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
+                vector< vector< vector< pair<double,double> > > >  _Netpolygon_temp;
+                for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
+                    vector< vector< pair<double,double> > >   _Netpolygon_Ltemp;
+                    _Netpolygon_temp.push_back(_Netpolygon_Ltemp);
+                }
+                _Netpolygon.push_back(_Netpolygon_temp);
+            }
             // _Ploted
             for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
                 vector< vector< bool* > > vNetPloted;
@@ -128,6 +137,7 @@ class DetailedMgr {
         void RemoveIsolatedGrid();
         void findPointList();
         void OutputTest();
+        void OutputFile(ifstream& fin, ofstream& fout);
 
     private:
         void clearNet(size_t layId, size_t netId);

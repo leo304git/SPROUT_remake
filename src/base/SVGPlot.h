@@ -29,6 +29,7 @@ class SVGPlot {
         double gridWidth() const { return _gridWidth; }
         tuple<int, int, int> value2color(double value);
         void setColorValueRange(double lb, double ub) { _lbColorValue = lb; _ubColorValue = ub; }
+        string vId2Color(size_t netId) { return _vColor[netId]; }
 
     private:
         ofstream& _fout;

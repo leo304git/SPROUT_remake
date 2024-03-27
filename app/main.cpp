@@ -53,11 +53,53 @@ int main(int argc, char* argv[]){
     // double boardHeight = 15*gridWidth;
     // size_t numLayers = 12;
     double gridWidth = 1;
-    double boardWidth = 75*gridWidth;
-    double boardHeight = 40*gridWidth;
-    size_t numLayers = 4;
-    double offsetX = 40;
-    double offsetY = 40;
+    // double boardWidth = 75*gridWidth;
+    // double boardHeight = 40*gridWidth;
+    // size_t numLayers = 4;
+    // double offsetX = 40;
+    // double offsetY = 40;
+
+    // For Example 1
+    // double boardWidth = 75*gridWidth;
+    // double boardHeight = 40*gridWidth;
+    // size_t numLayers = 4;
+    // double offsetX = 40;
+    // double offsetY = 40;
+
+    // For Example 2 
+    // double boardWidth = 100*gridWidth;
+    // double boardHeight = 70*gridWidth;
+    // size_t numLayers = 4;
+    // double offsetX = 95;
+    // double offsetY = 45;
+
+    // // For Example 3 
+    // double boardWidth = 100*gridWidth;
+    // double boardHeight = 65*gridWidth;
+    // size_t numLayers = 4;
+    // double offsetX = 25;
+    // double offsetY = 20;
+
+    // // For Example 4 
+    // double boardWidth = 80*gridWidth;
+    // double boardHeight = 55*gridWidth;
+    // size_t numLayers = 4;
+    // double offsetX = 120;
+    // double offsetY = 10;
+
+    // For Example 2 single layer
+    // double boardWidth = 100*gridWidth;
+    // double boardHeight = 70*gridWidth;
+    // size_t numLayers = 1;
+    // double offsetX = 95;
+    // double offsetY = 45;
+
+    // // For Example 5 (smaller)
+    double boardWidth = 50*gridWidth;
+    double boardHeight = 55*gridWidth;
+    size_t numLayers = 5;
+    double offsetX = 130;
+    double offsetY = 10;
 
     // SVGPlot plot(fout, boardWidth, boardHeight, gridWidth, numLayers, 6.0);
     SVGPlot plot(fout, boardWidth, boardHeight, gridWidth, numLayers, 6.0);
@@ -125,9 +167,9 @@ int main(int argc, char* argv[]){
     detailedMgr.plotDB();
     //detailedMgr.plotGridMapVoltage();
     //detailedMgr.plotGridMapCurrent();
-    //detailedMgr.plotGridMap();
-    detailedMgr.findPointList();
-    detailedMgr.OutputTest();
+    detailedMgr.plotGridMap();
+    // detailedMgr.findPointList();
+    // detailedMgr.OutputTest();
     //detailedMgr.buildMtx();
     //time(&end);
     double time_used = double(end - start);
@@ -141,6 +183,8 @@ int main(int argc, char* argv[]){
         min = min%60;
     }
     cout << "Time : " << hour << " hours " << min <<" mins "<< fixed << setprecision(5) << time_used << " sec " << endl; 
+    detailedMgr.buildMtx();
+    detailedMgr.printResult();
 
     //detailedMgr.writeColorMap_v2("../../exp/output/voltageColorMap.txt", 1);
     //detailedMgr.writeColorMap_v2("../../exp/output/currentColorMap.txt", 0);

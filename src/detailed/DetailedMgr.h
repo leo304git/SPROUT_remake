@@ -128,6 +128,7 @@ class DetailedMgr {
         void RemoveIsolatedGrid();
         void findPointList();
         void OutputTest();
+        void printResult();
 
     private:
         void clearNet(size_t layId, size_t netId);

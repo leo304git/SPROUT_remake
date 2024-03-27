@@ -14,7 +14,9 @@ struct BoundBox {
 class PreMgr {
     public:
         PreMgr(DB& db, SVGPlot& plot) : _db(db), _plot(plot) {
-            _vNumTPorts = {1,1,2};
+            for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
+                _vNumTPorts.push_back(_db.vNet(netId)->numTPorts());
+            }
             for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
                 vector<BoundBox> temp;
                 _vTBoundBox.push_back(temp);

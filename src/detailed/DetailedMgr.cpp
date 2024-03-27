@@ -74,15 +74,15 @@ void DetailedMgr::initGridMap() {
                     for (size_t tPortId = 0; tPortId < _db.vNet(netId)->numTPorts(); ++ tPortId) {
                         // Shape* tBBox = _db.vNet(netId)->vTargetViaCstr(tPortId)->bBox();
                         Shape* tBBox = _db.vNet(netId)->targetPort(tPortId)->boundPolygon();
-                        if (netId == 2) {
-                            vector< pair<double, double> > vVtx;
-                            vVtx.push_back(make_pair(tBBox->minX(), tBBox->minY()));
-                            vVtx.push_back(make_pair(tBBox->maxX(), tBBox->minY()));
-                            vVtx.push_back(make_pair(tBBox->maxX(), tBBox->maxY()));
-                            vVtx.push_back(make_pair(tBBox->minX(), tBBox->maxY()));
-                            Polygon* p = new Polygon(vVtx, _plot);
-                            tBBox = p;
-                        } 
+                        // if (netId == 2) {
+                        //     vector< pair<double, double> > vVtx;
+                        //     vVtx.push_back(make_pair(tBBox->minX(), tBBox->minY()));
+                        //     vVtx.push_back(make_pair(tBBox->maxX(), tBBox->minY()));
+                        //     vVtx.push_back(make_pair(tBBox->maxX(), tBBox->maxY()));
+                        //     vVtx.push_back(make_pair(tBBox->minX(), tBBox->maxY()));
+                        //     Polygon* p = new Polygon(vVtx, _plot);
+                        //     tBBox = p;
+                        // } 
                         if (occupy(xId, yId, tBBox)) {
                             grid->setPort();
                             if(layId == 0){
@@ -3119,4 +3119,30 @@ void DetailedMgr::OutputTest(){
             }
         }
     }
+}
+
+void DetailedMgr::printResult() {
+    int area = 0;
+    int overlapArea = 0;
+    // for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
+    //     for (size_t xId = 0; xId < _numXs; ++ xId) {
+    //         for (size_t yId = 0; yId < _numYs; ++ yId) {
+    //             Grid* grid = _vGrid[layId][xId][yId];
+    //             if (grid->congestCur() >= 1 && !grid->hasObs()) area++;
+    //             overlapArea += grid->congestCur();
+    //         }
+    //     }
+    // }
+    for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
+        for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
+            for (size_t gridId = 0; gridId < _vNetGrid[netId][layId].size(); gridId ++) {
+                Grid* grid = _vNetGrid[netId][layId][gridId];
+                area++;
+                // overlapArea += grid->congestCur();
+            }
+        }
+    }
+    overlapArea -= area;
+    cerr << "area = " << area << endl;
+    // cerr << "overlapArea = " << overlapArea << endl;
 }

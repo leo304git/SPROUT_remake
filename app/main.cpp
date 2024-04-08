@@ -12,6 +12,7 @@ int main(int argc, char* argv[]){
     ifstream finST, fin;
     ifstream finOb;
     ofstream fout;
+    ofstream file_output;
     finST.open(argv[1], ifstream::in);
     if (finST.is_open()) {
         cout << "input file (st components) is opened successfully" << endl;
@@ -36,6 +37,13 @@ int main(int argc, char* argv[]){
     } else {
         cerr << "Error opening input file" << endl;
     }
+    file_output.open(argv[5], ofstream::out);
+    if (file_output.is_open()) {
+        cout << "output file is opened successfully" << endl;
+    } else {
+        cerr << "Error opening output file" << endl;
+    }
+    
     // ofstream fout1;
     // fout1.open(argv[2], ofstream::out);
     // if (fout1.is_open()) {
@@ -100,6 +108,7 @@ int main(int argc, char* argv[]){
     size_t numLayers = 5;
     double offsetX = 130;
     double offsetY = 10;
+
 
     // SVGPlot plot(fout, boardWidth, boardHeight, gridWidth, numLayers, 6.0);
     SVGPlot plot(fout, boardWidth, boardHeight, gridWidth, numLayers, 6.0);
@@ -168,8 +177,22 @@ int main(int argc, char* argv[]){
     //detailedMgr.plotGridMapVoltage();
     //detailedMgr.plotGridMapCurrent();
     detailedMgr.plotGridMap();
-    // detailedMgr.findPointList();
-    // detailedMgr.OutputTest();
+    detailedMgr.findPointList();
+    //detailedMgr.OutputTest();
+    ////output////
+    //ifstream file_input;
+    //ofstream file_output;
+
+    // file_input.open(argv[5], ifstream::in);
+    // if (file_input.is_open()) {
+    //     cout << "input file is opened successfully" << endl;
+    // } else {
+    //     cerr << "Error opening input file" << endl;
+    // }
+    
+    fin.seekg(0, std::ios::beg);
+    detailedMgr.OutputFile(fin,file_output);
+    /////////////////
     //detailedMgr.buildMtx();
     //time(&end);
     double time_used = double(end - start);
@@ -196,9 +219,8 @@ int main(int argc, char* argv[]){
     // }    
     // // detailedMgr.fillInnerCircle(0, 1);
     
-    // detailedMgr.SPROUT();
 
-    // //detailedMgr.plotGridMap();
+    //detailedMgr.plotGridMap();
     // detailedMgr.plotGridMapCurrent();
 
     //globalMgr.plotDB();

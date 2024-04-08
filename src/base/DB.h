@@ -272,7 +272,12 @@ class DB {
             cerr << "}" << endl;
 
         }
-        
+
+        void addlayName2Id(string name, int Id){ _layName2Id[name] = Id; }
+        int layName2Id(string name) { return _layName2Id[name]; }
+        void addvNetName(string name){ _vNetName.push_back(name); }
+        string vNetName(size_t netId){ return _vNetName[netId]; }
+
     private:
         vector<Net*>         _vNet;
         vector<Via*>         _vVia;
@@ -295,11 +300,15 @@ class DB {
         // size_t _numRows;
         // size_t _numCols;
         map<string, int>    _nodeName2Id;
-        // map<string, int>    _layName2Id;
+        //map<string, int>    _layName2Id; //move to public
         vector< vector< string > > _vSNode; // index = [netId] [sNodeId]
         vector< vector< string > > _vTNode; // index = [netId] [tNodeId]
         PadStack* _VIA16D8A24;
         vector< vector< vector< DBNode* > > > _vClusteredNode; // index = [netId] [portId] [nodeId]
+
+        map<string, int>   _layName2Id;
+        vector<string> _vNetName;
+
 
 };
 

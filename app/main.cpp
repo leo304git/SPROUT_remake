@@ -111,12 +111,15 @@ int main(int argc, char* argv[]){
 
 
     // SVGPlot plot(fout, boardWidth, boardHeight, gridWidth, numLayers, 6.0);
-    SVGPlot plot(fout, boardWidth, boardHeight, gridWidth, numLayers, 6.0);
+    // SVGPlot plot(fout, boardWidth, boardHeight, gridWidth, numLayers, 6.0);
+    SVGPlot plot(fout, 10.0);
     DB db(plot);
-    db.setBoundary(boardWidth, boardHeight);
-    Parser parser(finST, fin, finOb, db, offsetX, offsetY, plot);
+    // db.setBoundary(boardWidth, boardHeight);
+    // Parser parser(finST, fin, finOb, db, offsetX, offsetY, plot);
+    Parser parser(finST, fin, finOb, db, plot);
     parser.parse();
 
+// /*
     //time
     time_t start, end;
     time(&start);
@@ -177,7 +180,7 @@ int main(int argc, char* argv[]){
     //detailedMgr.plotGridMapVoltage();
     //detailedMgr.plotGridMapCurrent();
     detailedMgr.plotGridMap();
-    detailedMgr.findPointList();
+    // detailedMgr.findPointList();
     //detailedMgr.OutputTest();
     ////output////
     //ifstream file_input;
@@ -208,7 +211,7 @@ int main(int argc, char* argv[]){
     cout << "Time : " << hour << " hours " << min <<" mins "<< fixed << setprecision(5) << time_used << " sec " << endl; 
     detailedMgr.buildMtx();
     detailedMgr.printResult();
-
+// */
     //detailedMgr.writeColorMap_v2("../../exp/output/voltageColorMap.txt", 1);
     //detailedMgr.writeColorMap_v2("../../exp/output/currentColorMap.txt", 0);
 

@@ -10,13 +10,23 @@ enum SVGPlotColor {
 
 class SVGPlot {
     public:
-        SVGPlot(ofstream& fout, double boardWidth, double boardHeight, double gridWidth, size_t numLayers, double plotRatio)
-        : _fout(fout), _boardWidth(boardWidth), _boardHeight(boardHeight), _gridWidth(gridWidth), _numLayers(numLayers), _plotRatio(plotRatio) {
+        // SVGPlot(ofstream& fout, double boardWidth, double boardHeight, double gridWidth, size_t numLayers, double plotRatio)
+        // : _fout(fout), _boardWidth(boardWidth), _boardHeight(boardHeight), _gridWidth(gridWidth), _numLayers(numLayers), _plotRatio(plotRatio) {
+        //     _vColor = {"lightsalmon","gold","greenyellow","lightblue","mediumpurple","red", "orange", "green", "blue", "purple", "gray", "black", "white"};
+        //     startPlot(_boardWidth*_plotRatio*numLayers, _boardHeight*plotRatio);
+        // }
+        SVGPlot(ofstream& fout, double plotRatio) : _fout(fout), _plotRatio(plotRatio) {
             _vColor = {"lightsalmon","gold","greenyellow","lightblue","mediumpurple","red", "orange", "green", "blue", "purple", "gray", "black", "white"};
-            startPlot(_boardWidth*_plotRatio*numLayers, _boardHeight*plotRatio);
         }
         ~SVGPlot() {}
 
+        void setBoard(double boardWidth, double boardHeight, size_t numLayers) {
+            _boardWidth = boardWidth;
+            _boardHeight = boardHeight;
+            _numLayers = numLayers;
+            _gridWidth = 1.0;
+            startPlot(_boardWidth*_plotRatio*numLayers, _boardHeight*_plotRatio);
+        }
         void startPlot(double canvasW, double canvasH);
         void endPlot();
         void drawSquare(double leftX, double topY, double width, size_t colorId, size_t layId);

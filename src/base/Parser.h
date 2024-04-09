@@ -10,7 +10,8 @@ class Parser {
     public:
         //Parser(ifstream& finST, ifstream& fin, DB& db, SVGPlot& plot) : _finST(finST), _fin(fin), _db(db), _plot(plot) {}
         //Parser(ifstream& finST, ifstream& fin, DB& db, double offsetX, double offsetY, SVGPlot& plot) : _finST(finST), _fin(fin), _db(db), _offsetX(offsetX), _offsetY(offsetY), _plot(plot) {}
-        Parser(ifstream& finST, ifstream& fin, ifstream& finOb, DB& db, double offsetX, double offsetY, SVGPlot& plot) : _finST(finST), _fin(fin), _finOb(finOb), _db(db), _offsetX(offsetX), _offsetY(offsetY), _plot(plot) {}
+        // Parser(ifstream& finST, ifstream& fin, ifstream& finOb, DB& db, double offsetX, double offsetY, SVGPlot& plot) : _finST(finST), _fin(fin), _finOb(finOb), _db(db), _offsetX(offsetX), _offsetY(offsetY), _plot(plot) {}
+        Parser(ifstream& finST, ifstream& fin, ifstream& finOb, DB& db, SVGPlot& plot) : _finST(finST), _fin(fin), _finOb(finOb), _db(db), _plot(plot) {}
         ~Parser() {}
 
         void testInitialize(double boardWidth, double boardHeight, double gridWidth);
@@ -39,6 +40,8 @@ class Parser {
         // vector< vector< string > > _vTNode; // index = [netId] [tNodeId]
         double _offsetX;
         double _offsetY;
+        double _boardWidth;
+        double _boardHeight;
 
 };
 

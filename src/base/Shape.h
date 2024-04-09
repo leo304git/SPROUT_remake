@@ -8,7 +8,7 @@ using namespace std;
 class Shape {
     public:
         Shape(SVGPlot& plot) : _plot(plot) {}
-        ~Shape() {}
+        virtual ~Shape() {}
         // double ctrX() const { return _center.first; }
         // double ctrY() const { return _center.second; }
         virtual double ctrX() { double ctrX; return ctrX; }
@@ -26,6 +26,14 @@ class Shape {
         virtual size_t numBPolyVtcs() { size_t numBPolyVtcs; return numBPolyVtcs;}
         virtual bool enclose(double x, double y);
         virtual double area() { double area; return area;}
+        virtual bool outBox(double lowerX, double upperX, double lowerY, double upperY) {
+            if (minX() > upperX || maxX() < lowerX || minY() > upperY || maxY() < lowerY) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+        virtual bool trim(double lowerX, double upperX, double lowerY, double upperY) {return false;}
     protected:
         SVGPlot& _plot;
         // pair<double, double> _center;
@@ -117,6 +125,48 @@ class Polygon : public Shape {
             // Return absolute value
             return abs(area / 2.0);
         }
+        bool trim(double lowerX, double upperX, double lowerY, double upperY) {
+            assert(!outBox(lowerX, upperX, lowerY, upperY));
+
+            bool trimmed = false;
+            vector< pair<double, double> > vNewVtx;
+
+            for (size_t vtxId = 0; vtxId < _vVtx.size(); ++ vtxId) {
+                pair<double, double> xy = _vVtx[vtxId];
+                if (xy.first < lowerX) {
+                    xy.first = lowerX;
+                    trimmed = true;
+                } else if (xy.first > upperX) {
+                    xy.first = upperX;
+                    trimmed = true;
+                }
+
+                if (xy.second < lowerY) {
+                    xy.second = lowerY;
+                    trimmed = true;
+                } else if (xy.second > upperY) {
+                    xy.second = upperY;
+                    trimmed = true;
+                }
+
+                bool repeat = false;
+                if (!vNewVtx.empty()) {
+                for (size_t newVtxId = 0; newVtxId < vNewVtx.size(); ++ newVtxId) {
+                    if (vNewVtx[newVtxId] == xy) repeat = true;
+                }
+                }
+                if (!repeat) {
+                    vNewVtx.push_back(xy);
+                }
+            }
+            _vVtx = vNewVtx;
+            // if (_vVtx.size() <= 2) {
+            //     return false;
+            // } else {
+            //     return true;
+            // }
+            return trimmed;
+        }
     private:
         vector< pair<double, double> > _vVtx;
 };
@@ -155,6 +205,13 @@ class Circle : public Shape {
         }
         double area() {
             return M_PI * pow(_radius, 2);
+        }
+        bool trim(double lowerX, double upperX, double lowerY, double upperY) {
+            if (_ctr.first >= lowerX && _ctr.first <= upperX && _ctr.second >= lowerY && _ctr.second <= upperY) {
+                return true;
+            } else {
+                return false;
+            }
         }
     private:
         pair<double, double> _ctr;
@@ -274,6 +331,24 @@ class Trace : public Shape {
                                     sqrt(pow(_tNode->ctrX() - _sNode->ctrX(), 2) + pow(_tNode->ctrY() - _sNode->ctrY(), 2));
         }
         size_t numBPolyVtcs() { return 4; }
+        bool trim(double lowerX, double upperX, double lowerY, double upperY) {
+            // auto inBox = [&] (double x, double y) -> bool {
+            //     if (x >= lowerX && x <= upperX && y >= lowerY && y <= upperY) {
+            //         return true;
+            //     } else {
+            //         return false;
+            //     }
+            // };
+
+            // if (!inBox(_sNode->ctrX(), _sNode->ctrY()) && !inBox(_tNode->ctrX(), _tNode->ctrY())) {
+            //     return false;
+            // } else {
+                
+            // }
+            assert(!outBox(lowerX, upperX, lowerY, upperY));
+            // if (_sNode->ctrX() < lowerX)
+            return false;
+        }
     private:
         Node* _sNode;
         Node* _tNode;

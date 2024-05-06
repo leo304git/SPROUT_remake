@@ -97,6 +97,7 @@ class ViaCluster{
         size_t  numVias()       const { return _vVia.size(); }
         size_t  netId()         const { return _vVia[0]->netId(); }
         ViaType viaType()       const { return _vVia[0]->viaType(); }
+        FRegion* fRegion()            { return _fRegion; }
         // unsigned int nodeId() const { return _nodeId; }
         // double centerRowId() {
         //     double cRowId = 0;
@@ -165,6 +166,8 @@ class ViaCluster{
             _bBox = new Polygon(vVtx, _plot);
         }
 
+        void setFRegion(FRegion* fRegion) { _fRegion = fRegion; }
+
         void print() {
             cerr << "ViaCluster {vVia=" << endl;
             for (size_t viaId = 0; viaId < _vVia.size(); ++ viaId) {
@@ -176,6 +179,7 @@ class ViaCluster{
         vector<Via*> _vVia;
         // unsigned int _nodeId;
         Shape* _bBox;
+        FRegion* _fRegion;
 };
 
 #endif

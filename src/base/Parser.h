@@ -5,13 +5,15 @@
 #include "DB.h"
 #include "SVGPlot.h"
 #include "Shape.h"
+#include "PreMgr.h"
 
 class Parser {
     public:
         //Parser(ifstream& finST, ifstream& fin, DB& db, SVGPlot& plot) : _finST(finST), _fin(fin), _db(db), _plot(plot) {}
         //Parser(ifstream& finST, ifstream& fin, DB& db, double offsetX, double offsetY, SVGPlot& plot) : _finST(finST), _fin(fin), _db(db), _offsetX(offsetX), _offsetY(offsetY), _plot(plot) {}
         // Parser(ifstream& finST, ifstream& fin, ifstream& finOb, DB& db, double offsetX, double offsetY, SVGPlot& plot) : _finST(finST), _fin(fin), _finOb(finOb), _db(db), _offsetX(offsetX), _offsetY(offsetY), _plot(plot) {}
-        Parser(ifstream& finST, ifstream& fin, ifstream& finOb, DB& db, SVGPlot& plot) : _finST(finST), _fin(fin), _finOb(finOb), _db(db), _plot(plot) {}
+        // Parser(ifstream& finST, ifstream& fin, ifstream& finOb, DB& db, SVGPlot& plot) : _finST(finST), _fin(fin), _finOb(finOb), _db(db), _plot(plot) {}
+        Parser(ifstream& finST, ifstream& fin, ifstream& finOb, PreMgr& preMgr, DB& db, SVGPlot& plot) : _finST(finST), _fin(fin), _finOb(finOb), _preMgr(preMgr), _db(db), _plot(plot) {}
         ~Parser() {}
 
         void testInitialize(double boardWidth, double boardHeight, double gridWidth);
@@ -29,6 +31,7 @@ class Parser {
         ifstream& _finST;
         ifstream& _fin;
         ifstream& _finOb;
+        PreMgr& _preMgr;
         DB& _db;
         SVGPlot& _plot;
         map<string, int> _layName2Id;

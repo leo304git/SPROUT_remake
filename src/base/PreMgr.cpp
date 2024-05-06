@@ -1,5 +1,297 @@
 #include "PreMgr.h"
 
+void PreMgr::initPreGrid(double gridWidth) {
+    _gridWidth = gridWidth;
+    _numRows = ceil(_db.boardHeight() / gridWidth);
+    _numCols = ceil(_db.boardWidth() / gridWidth);
+    PreGrid pGrid = {PreGridType::EMPTY, "empty", 0.0, 0.0, -1};
+    vector< PreGrid > vColGrid(_numCols, pGrid);
+    vector< vector< PreGrid > > vRowGrid(_numRows, vColGrid);
+    for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
+        _vPreGrid.push_back(vRowGrid);
+    }
+}
+
+void PreMgr::plotPreGrid() {
+    for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
+        for (size_t rowId = 0; rowId < _numRows; ++ rowId) {
+            for (size_t colId = 0; colId < _numCols; ++ colId) {
+                if (_vPreGrid[layId][rowId][colId].type == PreGridType::OBSTACLE) {
+                    double x1 = colId * _gridWidth;
+                    double y1 = rowId * _gridWidth;
+                    double x2 = (colId + 1) * _gridWidth;
+                    double y2 = (rowId + 1) * _gridWidth;
+                    vector< pair<double, double> > vVtx;
+                    vVtx.push_back(make_pair(x1, y1));
+                    vVtx.push_back(make_pair(x2, y1));
+                    vVtx.push_back(make_pair(x2, y2));
+                    vVtx.push_back(make_pair(x1, y2));
+                    Polygon* p = new Polygon(vVtx, _plot);
+                    p->plot(SVGPlotColor::gray, layId);
+                }
+                else if (_vPreGrid[layId][rowId][colId].type == PreGridType::FREGION) {
+                    double x1 = colId * _gridWidth;
+                    double y1 = rowId * _gridWidth;
+                    double x2 = (colId + 1) * _gridWidth;
+                    double y2 = (rowId + 1) * _gridWidth;
+                    vector< pair<double, double> > vVtx;
+                    vVtx.push_back(make_pair(x1, y1));
+                    vVtx.push_back(make_pair(x2, y1));
+                    vVtx.push_back(make_pair(x2, y2));
+                    vVtx.push_back(make_pair(x1, y2));
+                    Polygon* p = new Polygon(vVtx, _plot);
+                    p->plot(SVGPlotColor::gold, layId);
+                }
+            }
+        }
+    }
+
+}
+
+void PreMgr::fillLineGrid(size_t layId, double x1, double y1, double x2, double y2, string name) {
+    int x1Idx = floor(x1 / _gridWidth);
+    int y1Idx = floor(y1 / _gridWidth);
+    int x2Idx = floor(x2 / _gridWidth);
+    int y2Idx = floor(y2 / _gridWidth);
+    if (x1Idx == _numCols) x1Idx--;
+    if (y1Idx == _numRows) y1Idx--;
+    if (x2Idx == _numCols) x2Idx--;
+    if (y2Idx == _numRows) y2Idx--;
+    assert(x1Idx >= 0 && x1Idx < _numCols);
+    assert(y1Idx >= 0 && y1Idx < _numRows);
+    assert(x2Idx >= 0 && x2Idx < _numCols);
+    assert(y2Idx >= 0 && y2Idx < _numRows);
+    int xIdx = x1Idx;
+    int yIdx = y1Idx;
+    int dx = abs(x2Idx - x1Idx);
+    int dy = abs(y2Idx - y1Idx);
+    int sx = (x1Idx <= x2Idx) ? ((x1Idx == x2Idx) ? 0 : 1) : -1;
+    int sy = (y1Idx <= y2Idx) ? ((y1Idx == y2Idx) ? 0 : 1) : -1;
+    if (x1Idx < x2Idx) {
+        sx = 1;
+    } else if (x1Idx > x2Idx) {
+        sx = -1;
+    } else {
+        sx = 0;
+    }
+    if (y1Idx < y2Idx) {
+        sy = 1;
+    } else if (y1Idx > y2Idx) {
+        sy = -1;
+    } else {
+        sy = 0;
+    }
+    bool interchange = false;
+    if (dy > dx) {
+        int temp = dx;
+        dx = dy;
+        dy = temp;
+        interchange = true;
+    }
+
+    int D = 2 * dy - dx;
+    int DE = 2 * dy;
+    int DNE = 2 * (dy - dx);
+
+    // if (sx <= 0 && sy <= 0)
+    _vPreGrid[layId][yIdx][xIdx].type = PreGridType::OBSTACLE;
+
+    while (xIdx < x2Idx || yIdx < y2Idx) {
+        if (D <= 0) {
+            if (interchange) {
+                assert(sy != 0);
+                yIdx += sy;
+            } else {
+                assert(sx != 0);
+                xIdx += sx;
+            }
+            D += DE;
+        } else {
+            assert(sx != 0);
+            assert(sy != 0);
+            yIdx += sy;
+            xIdx += sx;
+            D += DNE;
+        }
+        // if (sx <= 0 && sy <= 0)
+        _vPreGrid[layId][yIdx][xIdx].type = PreGridType::OBSTACLE;
+    }
+        
+}
+
+void PreMgr::fillLineGridXArch(size_t layId, double x1, double y1, double x2, double y2, string name) {
+    int x1Idx = floor(x1 / _gridWidth);
+    int y1Idx = floor(y1 / _gridWidth);
+    int x2Idx = floor(x2 / _gridWidth);
+    int y2Idx = floor(y2 / _gridWidth);
+    if (x1Idx == _numCols) x1Idx--;
+    if (y1Idx == _numRows) y1Idx--;
+    if (x2Idx == _numCols) x2Idx--;
+    if (y2Idx == _numRows) y2Idx--;
+    assert(x1Idx >= 0 && x1Idx < _numCols);
+    assert(y1Idx >= 0 && y1Idx < _numRows);
+    assert(x2Idx >= 0 && x2Idx < _numCols);
+    assert(y2Idx >= 0 && y2Idx < _numRows);
+    if (x1Idx == x2Idx) {
+        if (y1Idx < y2Idx) {
+            for (int yIdx = y1Idx; yIdx <= y2Idx; ++ yIdx) {
+                _vPreGrid[layId][yIdx][x1Idx].type = PreGridType::OBSTACLE;
+                _vPreGrid[layId][yIdx][x1Idx].name = name;
+            }
+        } else if (y1Idx > y2Idx) {
+            for (int yIdx = y2Idx; yIdx <= y1Idx; ++ yIdx) {
+                _vPreGrid[layId][yIdx][x1Idx].type = PreGridType::OBSTACLE;
+                _vPreGrid[layId][yIdx][x1Idx].name = name;
+            }
+        } else {
+            _vPreGrid[layId][y1Idx][x1Idx].type = PreGridType::OBSTACLE;
+            _vPreGrid[layId][y1Idx][x1Idx].name = name;
+        }
+    } else if (x1Idx < x2Idx) {
+        if (y1Idx < y2Idx) {
+            int yIdx = y1Idx;
+            for (int xIdx = x1Idx; xIdx <= x2Idx && yIdx <= y2Idx; ++ xIdx) {
+                _vPreGrid[layId][yIdx][xIdx].type = PreGridType::OBSTACLE;
+                _vPreGrid[layId][yIdx][xIdx].name = name;
+                yIdx += 1;
+            }
+        } else if (y1Idx > y2Idx) {
+            int yIdx = y1Idx;
+            for (int xIdx = x1Idx; xIdx <= x2Idx && yIdx >= y2Idx; ++ xIdx) {
+                _vPreGrid[layId][yIdx][xIdx].type = PreGridType::OBSTACLE;
+                _vPreGrid[layId][yIdx][xIdx].name = name;
+                yIdx -= 1;
+            }
+        } else {
+            for (int xIdx = x1Idx; xIdx <= x2Idx; ++ xIdx) {
+                _vPreGrid[layId][y1Idx][xIdx].type = PreGridType::OBSTACLE;
+                _vPreGrid[layId][y1Idx][xIdx].name = name;
+            }
+        }
+    } else {
+        if (y1Idx < y2Idx) {
+            int yIdx = y2Idx;
+            for (int xIdx = x2Idx; xIdx <= x1Idx && yIdx >= y1Idx; ++ xIdx) {
+                _vPreGrid[layId][yIdx][xIdx].type = PreGridType::OBSTACLE;
+                _vPreGrid[layId][yIdx][xIdx].name = name;
+                yIdx -= 1;
+            }
+        } else if (y1Idx > y2Idx) {
+            int yIdx = y2Idx;
+            for (int xIdx = x2Idx; xIdx <= x1Idx && yIdx <= y1Idx; ++ xIdx) {
+                _vPreGrid[layId][yIdx][xIdx].type = PreGridType::OBSTACLE;
+                _vPreGrid[layId][yIdx][xIdx].name = name;
+                yIdx += 1;
+            }
+        } else {
+            for (int xIdx = x2Idx; xIdx <= x1Idx; ++ xIdx) {
+                _vPreGrid[layId][y1Idx][xIdx].type = PreGridType::OBSTACLE;
+                _vPreGrid[layId][y1Idx][xIdx].name = name;
+            }
+        }
+    }
+}
+
+void PreMgr::fillPolygonGrid(size_t layId, Polygon* polygon, string name) {
+    // fill the contour line
+    for (size_t vtxId = 0; vtxId < polygon->numVtcs(); ++ vtxId) {
+        double x1 = polygon->vtxX(vtxId);
+        double y1 = polygon->vtxY(vtxId);
+        double x2 = polygon->vtxX((vtxId + 1) % polygon->numVtcs());
+        double y2 = polygon->vtxY((vtxId + 1) % polygon->numVtcs());
+        fillLineGridXArch(layId, x1, y1, x2, y2, name);
+    }
+
+/*
+    // fill the inside of the polygon
+    int minColIdx = floor(polygon->minX() / _gridWidth);
+    int minRowIdx = floor(polygon->minY() / _gridWidth);
+    int maxColIdx = floor(polygon->maxX() / _gridWidth);
+    int maxRowIdx = floor(polygon->maxY() / _gridWidth);
+    if (minColIdx == _numCols) minColIdx--;
+    if (minRowIdx == _numRows) minRowIdx--;
+    if (maxColIdx == _numCols) maxColIdx--;
+    if (maxRowIdx == _numRows) maxRowIdx--;
+    // enum State {OUTSIDE, INSIDE, ONBOUNDARY};
+    // State state = OUTSIDE;
+    // for (size_t rowIdx = minRowIdx; rowIdx <= maxRowIdx; ++ rowIdx) {
+    //     bool inside = false;
+    //     bool onBoundary = false;
+    //     for (size_t colIdx = minColIdx; colIdx <= maxColIdx; ++ colIdx) {
+    //         if (_vPreGrid[layId][rowIdx][colIdx].name == name) {
+    //             if (!onBoundary) {
+    //                 inside = !inside;
+    //             }
+    //             onBoundary = true;
+    //             // if (colIdx >= 1) {
+    //             //     if (_vPreGrid[layId][rowIdx][colIdx-1].name != name) {
+    //             //         inside = true;
+    //             //     } else if (inside) {
+    //             //         inside = false;
+    //             //     }
+    //             // } else {
+    //             //     inside = !inside;
+    //             // }
+    //         } else {
+    //             if (inside) {
+    //                 _vPreGrid[layId][rowIdx][colIdx].isOccupied = true;
+    //                 _vPreGrid[layId][rowIdx][colIdx].name = name;
+    //             }
+    //             onBoundary = false;
+    //         }
+    //     }
+    // }
+
+    for (size_t rowIdx = minRowIdx; rowIdx <= maxRowIdx; ++ rowIdx) {
+        bool onBoundary = false;
+        int numIntersect = 0;
+        for (size_t colIdx = minColIdx; colIdx <= maxColIdx; ++ colIdx) {
+            if (_vPreGrid[layId][rowIdx][colIdx].name == name) {
+                if (!onBoundary) {
+                    numIntersect++;
+                }
+                onBoundary = true;
+            } else {
+                onBoundary = false;
+            }
+        }
+        if (numIntersect > 1) {
+            onBoundary = false;
+            int numCurIntersect = 0;
+            bool inside = false;
+            for (size_t colIdx = minColIdx; colIdx <= maxColIdx; ++ colIdx) {
+                if (_vPreGrid[layId][rowIdx][colIdx].name == name) {
+                    if (!onBoundary) {
+                        numCurIntersect++;
+                        inside = !inside;
+                        if (numCurIntersect == numIntersect) {
+                            inside = false;
+                        }
+                    }
+                    onBoundary = true;
+                    // if (colIdx >= 1) {
+                    //     if (_vPreGrid[layId][rowIdx][colIdx-1].name != name) {
+                    //         inside = true;
+                    //     } else if (inside) {
+                    //         inside = false;
+                    //     }
+                    // } else {
+                    //     inside = !inside;
+                    // }
+                } else {
+                    if (inside) {
+                        _vPreGrid[layId][rowIdx][colIdx].isOccupied = true;
+                        _vPreGrid[layId][rowIdx][colIdx].name = name;
+                    }
+                    onBoundary = false;
+                }
+            }
+        }
+    
+    }
+*/
+}
+
 void PreMgr::nodeClustering() {
     for (size_t netId =0; netId < _db.numNets(); ++ netId) {
         BoundBox sb = {_db.vSNode(netId, 0)->node()->ctrX(), _db.vSNode(netId, 0)->node()->ctrY(),
@@ -127,6 +419,104 @@ void PreMgr::assignPortPolygon() {
             // _db.vNet(netId)->targetPort(tPortId)->setBoundPolygon(p);
             Polygon* p = convexHull(_vTClusteredNode[netId][tPortId]);
             _db.vNet(netId)->targetPort(tPortId)->setBoundPolygon(p);
+        }
+    }
+}
+
+void PreMgr::clearPortGrid() {
+    for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
+        for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
+            for (size_t portId = 0; portId < _db.vNet(netId)->numTPorts()+1; ++ portId) {
+                if (portId == 0) {
+                    // _db.vNet(netId)->sourcePort()->boundPolygon()->clearGrid(layId);
+                } else {
+                    // _db.vNet(netId)->targetPort(portId-1)->boundPolygon()->clearGrid(layId);
+                }
+            }
+        }
+    }
+}
+
+void PreMgr::spareRailSpace() {
+    auto legal = [&](int yIdx, int xIdx) -> bool {
+        return xIdx >= 0 && xIdx < _numCols && yIdx >= 0 && yIdx < _numRows;
+    };
+    cerr << "spareRailSpace..." << endl;
+
+    size_t fRegionId = 0;
+    FRegion* fRegion;
+    for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
+        for (size_t portId = 0; portId < _db.vNet(netId)->numTPorts()+1 ; ++ portId) {
+            int x0Idx;
+            int y0Idx;
+            if (portId == 0) {
+                x0Idx = floor(_db.vSNode(netId, 0)->node()->ctrX() / _gridWidth);
+                y0Idx = floor(_db.vSNode(netId, 0)->node()->ctrY() / _gridWidth);
+            } else {
+                x0Idx = floor(_vTClusteredNode[netId][portId-1][0]->node()->ctrX() / _gridWidth); 
+                y0Idx = floor(_vTClusteredNode[netId][portId-1][0]->node()->ctrY() / _gridWidth);
+            }
+            for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
+                cerr << "layId = " << layId << endl;
+                if (_vPreGrid[layId][y0Idx][x0Idx].type == PreGridType::OBSTACLE) {
+                    continue;
+                }
+                assert(_vPreGrid[layId][y0Idx][x0Idx].type != PreGridType::OBSTACLE);
+                if (_vPreGrid[layId][y0Idx][x0Idx].type == PreGridType::EMPTY) {
+                    fRegionId++;
+                    // BFS
+                    queue< pair<int, int> > q;
+                    // _vPreGrid[layId][y0Idx][x0Idx].name = "RailSpace" + to_string(fRegionId);
+                    q.push(make_pair(y0Idx, x0Idx));
+                    while (!q.empty()) {
+                        pair<int, int> p = q.front();
+                        q.pop();
+                        int yIdx = p.first;
+                        int xIdx = p.second;
+                        // cerr << "yIdx = " << yIdx << ", xIdx = " << xIdx << endl;
+                        assert(xIdx >= 0 && xIdx < _numCols && yIdx >= 0 && yIdx < _numRows);
+                        // _vPreGrid[layId][yIdx][xIdx].name = "RailSpace";
+                        if (legal(yIdx-1, xIdx) && _vPreGrid[layId][yIdx-1][xIdx].type == PreGridType::EMPTY) {
+                            // _vPreGrid[layId][yIdx-1][xIdx].name = "RailSpace";
+                            _vPreGrid[layId][yIdx-1][xIdx].type = PreGridType::FREGION;
+                            _vPreGrid[layId][yIdx-1][xIdx].fRegionId = fRegionId;
+                            q.push(make_pair(yIdx-1, xIdx));
+                        } else if (legal(yIdx-1, xIdx) && _vPreGrid[layId][yIdx-1][xIdx].type == PreGridType::OBSTACLE) {
+                            _vPreGrid[layId][yIdx-1][xIdx].type = PreGridType::CONTOUR;
+                        }
+                        if (legal(yIdx+1, xIdx) && _vPreGrid[layId][yIdx+1][xIdx].type == PreGridType::EMPTY) {
+                            // _vPreGrid[layId][yIdx+1][xIdx].name = "RailSpace";
+                            _vPreGrid[layId][yIdx+1][xIdx].type = PreGridType::FREGION;
+                            _vPreGrid[layId][yIdx+1][xIdx].fRegionId = fRegionId;
+                            q.push(make_pair(yIdx+1, xIdx));
+                        } else if (legal(yIdx-1, xIdx) && _vPreGrid[layId][yIdx-1][xIdx].type == PreGridType::OBSTACLE) {
+                            _vPreGrid[layId][yIdx+1][xIdx].type = PreGridType::CONTOUR;
+                        }
+                        if (legal(yIdx, xIdx-1) && _vPreGrid[layId][yIdx][xIdx-1].type == PreGridType::EMPTY) {
+                            // _vPreGrid[layId][yIdx][xIdx-1].name = "RailSpace";
+                            _vPreGrid[layId][yIdx][xIdx-1].type = PreGridType::FREGION;
+                            _vPreGrid[layId][yIdx][xIdx-1].fRegionId = fRegionId;
+                            q.push(make_pair(yIdx, xIdx-1));
+                        } else if (legal(yIdx, xIdx-1) && _vPreGrid[layId][yIdx][xIdx-1].type == PreGridType::OBSTACLE) {
+                            _vPreGrid[layId][yIdx][xIdx-1].type = PreGridType::CONTOUR;
+                        }
+                        if (legal(yIdx, xIdx+1) && !_vPreGrid[layId][yIdx][xIdx+1].type == PreGridType::EMPTY) {
+                            // _vPreGrid[layId][yIdx][xIdx+1].name = "RailSpace";
+                            _vPreGrid[layId][yIdx][xIdx+1].type = PreGridType::FREGION;
+                            _vPreGrid[layId][yIdx][xIdx+1].fRegionId = fRegionId;
+                            q.push(make_pair(yIdx, xIdx+1));
+                        } else if (legal(yIdx, xIdx+1) && _vPreGrid[layId][yIdx][xIdx+1].type == PreGridType::OBSTACLE) {
+                            _vPreGrid[layId][yIdx][xIdx+1].type = PreGridType::CONTOUR;
+                        }
+                    }
+                    fRegion = constructFRegion(netId, layId);
+                    _db.vMetalLayer(layId)->addFRegion(fRegion);
+                } else {
+                    assert(_vPreGrid[layId][y0Idx][x0Idx].type == PreGridType::FREGION);
+                    fRegion = _db.vMetalLayer(layId)->vFRegion(_vPreGrid[layId][y0Idx][x0Idx].fRegionId);
+                }
+                _db.setPortinFRegion(fRegion, netId, portId);
+            }
         }
     }
 }

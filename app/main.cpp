@@ -114,21 +114,21 @@ int main(int argc, char* argv[]){
     // SVGPlot plot(fout, boardWidth, boardHeight, gridWidth, numLayers, 6.0);
     SVGPlot plot(fout, 10.0);
     DB db(plot);
+    PreMgr preMgr(db, plot);
     // db.setBoundary(boardWidth, boardHeight);
     // Parser parser(finST, fin, finOb, db, offsetX, offsetY, plot);
-    Parser parser(finST, fin, finOb, db, plot);
+    Parser parser(finST, fin, finOb, preMgr, db, plot);
     parser.parse();
 
-// /*
-    //time
-    time_t start, end;
-    time(&start);
+/*
     // NetworkMgr mgr(db, plot);
-    PreMgr preMgr(db, plot);
     preMgr.nodeClustering();
     preMgr.assignPortPolygon();
     preMgr.plotBoundBox();
     
+    //time
+    time_t start, end;
+    time(&start);
     // replace this line with a real parser function
     // parser.testInitialize(boardWidth, boardHeight, gridWidth);
 
@@ -211,7 +211,7 @@ int main(int argc, char* argv[]){
     cout << "Time : " << hour << " hours " << min <<" mins "<< fixed << setprecision(5) << time_used << " sec " << endl; 
     detailedMgr.buildMtx();
     detailedMgr.printResult();
-// */
+*/
     //detailedMgr.writeColorMap_v2("../../exp/output/voltageColorMap.txt", 1);
     //detailedMgr.writeColorMap_v2("../../exp/output/currentColorMap.txt", 0);
 

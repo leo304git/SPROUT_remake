@@ -51,9 +51,11 @@ class MetalLayer : public Layer {
 
         size_t numObstacles() const       { return _vObstacle.size(); }
         Obstacle* vObstacle(size_t obsId) { return _vObstacle[obsId]; }
+        FRegion* vFRegion(size_t fRegionId) { return _vFRegion[fRegionId]; }
         double conductivity() const {return _conductivity; }
 
         void addObstacle(Obstacle* obs) { _vObstacle.push_back(obs); }
+        void addFRegion(FRegion* fRegion) { _vFRegion.push_back(fRegion); }
         void print() {
             cerr << "MetalLayer {layId=" << _layId << ", layName=" << _layName << ", thickness=" << _thickness 
                  << ", conductivity=" << _conductivity << ", permittivity=" << _permittivity << ", vObstacle=" << endl;
@@ -69,6 +71,7 @@ class MetalLayer : public Layer {
         // string            _layName;
         double            _conductivity;
         vector<Obstacle*> _vObstacle;
+        vector<FRegion*>  _vFRegion;
 };
 
 #endif

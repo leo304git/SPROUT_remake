@@ -41,9 +41,13 @@ class Shape {
 
 class Polygon : public Shape {
     public:
-        Polygon(vector< pair<double, double> > vVtx, SVGPlot& plot) : _vVtx(vVtx), Shape(plot) {}
+        Polygon(vector< pair<double, double> > vVtx, SVGPlot& plot) : _vVtx(vVtx), Shape(plot) {
+            _negPolygon = NULL;
+        }
         ~Polygon(){}
         size_t numVtcs() const { return _vVtx.size(); }
+        Polygon* negPolygon() { return _negPolygon; }
+        void setNegPolygon(Polygon* negPolygon) { _negPolygon = negPolygon; }
         double vtxX(size_t vtxIdx) const { return _vVtx[vtxIdx].first;}
         double vtxY(size_t vtxIdx) const { return _vVtx[vtxIdx].second;}
         double ctrX() {
@@ -169,6 +173,7 @@ class Polygon : public Shape {
         }
     private:
         vector< pair<double, double> > _vVtx;
+        Polygon* _negPolygon;
 };
 
 class Circle : public Shape {
@@ -331,6 +336,13 @@ class Trace : public Shape {
                                     sqrt(pow(_tNode->ctrX() - _sNode->ctrX(), 2) + pow(_tNode->ctrY() - _sNode->ctrY(), 2));
         }
         size_t numBPolyVtcs() { return 4; }
+        bool outBox(double lowerX, double upperX, double lowerY, double upperY) {
+            if (maxX() >= upperX || minX() <= lowerX || maxY() >= upperY || minY() <= lowerY) {
+                return true;
+            } else {
+                return false;
+            }
+        }
         bool trim(double lowerX, double upperX, double lowerY, double upperY) {
             // auto inBox = [&] (double x, double y) -> bool {
             //     if (x >= lowerX && x <= upperX && y >= lowerY && y <= upperY) {

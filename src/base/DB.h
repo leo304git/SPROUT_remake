@@ -277,6 +277,15 @@ class DB {
         int layName2Id(string name) { return _layName2Id[name]; }
         void addvNetName(string name){ _vNetName.push_back(name); }
         string vNetName(size_t netId){ return _vNetName[netId]; }
+        void setPortinFRegion(FRegion* fRegion, size_t netId, size_t portId){
+            if (portId == 0) {
+                fRegion->addPort(_vNet[netId]->sourcePort());
+                _vNet[netId]->sourcePort()->viaCluster()->setFRegion(fRegion);
+            } else {
+                fRegion->addPort(_vNet[netId]->targetPort(portId-1));
+                _vNet[netId]->targetPort(portId-1)->viaCluster()->setFRegion(fRegion);
+            }
+        }
 
     private:
         vector<Net*>         _vNet;
@@ -308,6 +317,9 @@ class DB {
 
         map<string, int>   _layName2Id;
         vector<string> _vNetName;
+
+        vector<FRegion*> _vFRegion;
+        // vector< vector< vector< FRegion* > > > _vFRegion; // index = [netId] [layId] [fRegionId]
 
 
 };

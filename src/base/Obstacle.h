@@ -3,6 +3,7 @@
 
 #include "Include.h"
 #include "Shape.h"
+#include "Net.h"
 using  namespace std;
 
 class Obstacle {
@@ -25,6 +26,7 @@ class Obstacle {
 class FRegion {
     public:
         FRegion() {};
+        FRegion(Polygon* polygon) : _polygon(polygon) {};
         ~FRegion() {};
 
         void addObstacle(Obstacle* obstacle) {

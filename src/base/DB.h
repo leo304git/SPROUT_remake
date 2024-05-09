@@ -165,13 +165,13 @@ class DB {
         }
 
         void addSPort(size_t netId, double voltage, double current) {
-            Port* port = new Port(_vPort.size(), -1, voltage, current);
+            Port* port = new Port(_vPort.size(), -1, voltage, current, _vMetalLayer.size());
             _vPort.push_back(port);
             _vNet[netId]->addSPort(port);
         }
 
         void addTPort(size_t netId, double voltage, double current) {
-            Port* port = new Port(_vPort.size(), _vNet[netId]->numTPorts(), voltage, current);
+            Port* port = new Port(_vPort.size(), _vNet[netId]->numTPorts(), voltage, current, _vMetalLayer.size());
             _vPort.push_back(port);
             _vNet[netId]->addTPort(port);
         }
@@ -277,13 +277,23 @@ class DB {
         int layName2Id(string name) { return _layName2Id[name]; }
         void addvNetName(string name){ _vNetName.push_back(name); }
         string vNetName(size_t netId){ return _vNetName[netId]; }
-        void setPortinFRegion(FRegion* fRegion, size_t netId, size_t portId){
+        // void setPortinFRegion(FRegion* fRegion, size_t netId, size_t portId){
+        //     if (portId == 0) {
+        //         fRegion->addPort(_vNet[netId]->sourcePort());
+        //         _vNet[netId]->sourcePort()->viaCluster()->setFRegionId(fRegion);
+        //     } else {
+        //         fRegion->addPort(_vNet[netId]->targetPort(portId-1));
+        //         _vNet[netId]->targetPort(portId-1)->viaCluster()->setFRegion(fRegion);
+        //     }
+        // }
+        void setPortinFRegion(size_t layId, int fRegionId, size_t netId, size_t portId){
+            FRegion* fRegion = _vMetalLayer[layId]->vFRegion(fRegionId);
             if (portId == 0) {
                 fRegion->addPort(_vNet[netId]->sourcePort());
-                _vNet[netId]->sourcePort()->viaCluster()->setFRegion(fRegion);
+                _vNet[netId]->sourcePort()->setFRegionId(fRegionId, layId);
             } else {
                 fRegion->addPort(_vNet[netId]->targetPort(portId-1));
-                _vNet[netId]->targetPort(portId-1)->viaCluster()->setFRegion(fRegion);
+                _vNet[netId]->targetPort(portId-1)->setFRegionId(fRegionId, layId);
             }
         }
 

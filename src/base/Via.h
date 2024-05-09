@@ -90,14 +90,15 @@ class Via{
 
 class ViaCluster{
     public:
-        ViaCluster() { _vVia.clear();}
+        ViaCluster() { _vVia.clear(); _vFRegionId.clear();}
         ~ViaCluster() {}
 
         Via*    vVia(int viaId) const { return _vVia[viaId]; }
         size_t  numVias()       const { return _vVia.size(); }
         size_t  netId()         const { return _vVia[0]->netId(); }
         ViaType viaType()       const { return _vVia[0]->viaType(); }
-        FRegion* fRegion()            { return _fRegion; }
+        // FRegion* fRegion()            { return _fRegion; }
+        int fRegionId(size_t layId) const { return _vFRegionId[layId]; }
         // unsigned int nodeId() const { return _nodeId; }
         // double centerRowId() {
         //     double cRowId = 0;
@@ -166,7 +167,8 @@ class ViaCluster{
             _bBox = new Polygon(vVtx, _plot);
         }
 
-        void setFRegion(FRegion* fRegion) { _fRegion = fRegion; }
+        // void setFRegion(FRegion* fRegion) { _fRegion = fRegion; }
+        void setFRegionId(int fRegionId, size_t layId) { _vFRegionId[layId] = fRegionId; }
 
         void print() {
             cerr << "ViaCluster {vVia=" << endl;
@@ -179,7 +181,8 @@ class ViaCluster{
         vector<Via*> _vVia;
         // unsigned int _nodeId;
         Shape* _bBox;
-        FRegion* _fRegion;
+        // FRegion* _fRegion;
+        vector<int> _vFRegionId;    // index = [layId], assigned in 3D OASG generation
 };
 
 #endif

@@ -29,19 +29,19 @@ struct BoundBox {
 class PreMgr {
     public:
         PreMgr(DB& db, SVGPlot& plot) : _db(db), _plot(plot) {
-            for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
-                _vNumTPorts.push_back(_db.vNet(netId)->numTPorts());
-            }
-            for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
-                vector<BoundBox> temp;
-                _vTBoundBox.push_back(temp);
-                vector< vector< DBNode* > > netNode;
-                for (size_t tPortId = 0; tPortId < _vNumTPorts[netId]; ++tPortId) {
-                    vector<DBNode*> tPortNode;
-                    netNode.push_back(tPortNode);
-                }
-                _vTClusteredNode.push_back(netNode);
-            }
+            // for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
+            //     _vNumTPorts.push_back(_db.vNet(netId)->numTPorts());
+            // }
+            // for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
+            //     vector<BoundBox> temp;
+            //     _vTBoundBox.push_back(temp);
+            //     vector< vector< DBNode* > > netNode;
+            //     for (size_t tPortId = 0; tPortId < _vNumTPorts[netId]; ++tPortId) {
+            //         vector<DBNode*> tPortNode;
+            //         netNode.push_back(tPortNode);
+            //     }
+            //     _vTClusteredNode.push_back(netNode);
+            // }
         }
         ~PreMgr() {}
 
@@ -53,6 +53,7 @@ class PreMgr {
         void fillPolygonGrid(size_t layId, Polygon* polygon, string name);
 
         // functions for port clustering
+        void initialize();
         void nodeClustering();
         void plotBoundBox();
         void assignPortPolygon();
@@ -60,11 +61,12 @@ class PreMgr {
         // functions for feasible region construction
         void clearPortGrid();
         void spareRailSpace();
-        FRegion* constructFRegion(size_t netId, size_t layId);
+        FRegion* constructFRegion(size_t netId, size_t layId, size_t fRegionId, const int sRowIdx, const int sColIdx);
         
     private:
         void kMeansClustering(size_t netId, vector<DBNode*> vNode, int numEpochs, int k);
         Polygon* convexHull(vector<DBNode*> vNode);
+        bool constructFRegionDFS(const size_t& layId, const size_t& fRegionId, const int& rowIdx, const int& colIdx, const int& sRowIdx, const int& sColIdx, vector< pair<double, double> >& vVtx, vector< vector< bool > >& visited);
         DB& _db;
         SVGPlot& _plot;
         vector< size_t > _vNumTPorts;       // index = [netId]

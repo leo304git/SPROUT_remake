@@ -188,8 +188,9 @@ void Parser::parse() {
     // getline(_fin, data);
     // cerr << "before parseConnect: " << data << endl;
     parseConnect();
-    _preMgr.spareRailSpace();
-    _preMgr.plotPreGrid();
+    // _preMgr.clearPortGrid();
+    // _preMgr.spareRailSpace();
+    // _preMgr.plotPreGrid();
     parseObstacle();
 
 }
@@ -451,7 +452,7 @@ void Parser::parseShape() {
                 } else if (netName == "+VCCSA+") {
                     shape->plot(SVGPlotColor::purple, _layName2Id[layName]);
                 } else if (netName == "GND+") {
-                    shape->plot(SVGPlotColor::blue, _layName2Id[layName]);
+                    shape->plot(SVGPlotColor::gray, _layName2Id[layName]);
                     _preMgr.fillPolygonGrid(_layName2Id[layName], poly, netName);
                 } else {
                     shape->plot(SVGPlotColor::gray, _layName2Id[layName]);

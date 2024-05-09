@@ -20,5 +20,7 @@
 #include <iomanip>
 #include <queue>
 #include <time.h>
+#include <stack>
+#include <functional>
 
 #endif

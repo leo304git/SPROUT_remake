@@ -120,12 +120,17 @@ int main(int argc, char* argv[]){
     Parser parser(finST, fin, finOb, preMgr, db, plot);
     parser.parse();
 
-/*
+
     // NetworkMgr mgr(db, plot);
+    preMgr.initialize();
     preMgr.nodeClustering();
     preMgr.assignPortPolygon();
-    preMgr.plotBoundBox();
-    
+    // preMgr.plotBoundBox();
+
+    preMgr.clearPortGrid();
+    preMgr.spareRailSpace();
+    // preMgr.plotPreGrid();
+/*    
     //time
     time_t start, end;
     time(&start);

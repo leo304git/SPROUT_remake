@@ -29,6 +29,19 @@ void PreMgr::plotPreGrid() {
                     Polygon* p = new Polygon(vVtx, _plot);
                     p->plot(SVGPlotColor::gray, layId);
                 }
+                else if (_vPreGrid[layId][rowId][colId].type == PreGridType::CONTOUR) {
+                    double x1 = colId * _gridWidth;
+                    double y1 = rowId * _gridWidth;
+                    double x2 = (colId + 1) * _gridWidth;
+                    double y2 = (rowId + 1) * _gridWidth;
+                    vector< pair<double, double> > vVtx;
+                    vVtx.push_back(make_pair(x1, y1));
+                    vVtx.push_back(make_pair(x2, y1));
+                    vVtx.push_back(make_pair(x2, y2));
+                    vVtx.push_back(make_pair(x1, y2));
+                    Polygon* p = new Polygon(vVtx, _plot);
+                    p->plot(SVGPlotColor::red, layId);
+                }
                 else if (_vPreGrid[layId][rowId][colId].type == PreGridType::FREGION) {
                     double x1 = colId * _gridWidth;
                     double y1 = rowId * _gridWidth;
@@ -193,6 +206,47 @@ void PreMgr::fillLineGridXArch(size_t layId, double x1, double y1, double x2, do
 }
 
 void PreMgr::fillPolygonGrid(size_t layId, Polygon* polygon, string name) {
+    auto occupy = [&] (int xId, int yId, Shape* shape) -> bool {
+        if (shape->enclose(xId*_gridWidth, yId*_gridWidth)) return true;
+        if (shape->enclose((xId+1)*_gridWidth, yId*_gridWidth)) return true;
+        if (shape->enclose(xId*_gridWidth, (yId+1)*_gridWidth)) return true;
+        if (shape->enclose((xId+1)*_gridWidth, (yId+1)*_gridWidth)) return true;
+        for (size_t vtxIdx = 0; vtxIdx < shape->numBPolyVtcs(); ++ vtxIdx) {
+            if (shape->bPolygonX(vtxIdx) >= xId*_gridWidth &&
+                shape->bPolygonX(vtxIdx) <= (xId+1)*_gridWidth &&
+                shape->bPolygonY(vtxIdx) >= yId*_gridWidth &&
+                shape->bPolygonY(vtxIdx) <= (yId+1)*_gridWidth) {
+                    return true;
+                }
+        }
+        return false;
+    };
+
+    int xMinIdx = floor(polygon->minX() / _gridWidth);
+    int xMaxIdx = floor(polygon->maxX() / _gridWidth);
+    int yMinIdx = floor(polygon->minY() / _gridWidth);
+    int yMaxIdx = floor(polygon->maxY() / _gridWidth);
+    if (xMaxIdx == _numCols) xMaxIdx --;
+    if (yMaxIdx == _numRows) yMaxIdx --;
+    assert(xMinIdx >= 0 && xMinIdx < _numCols);
+    assert(yMinIdx >= 0 && yMinIdx < _numRows);
+    assert(xMaxIdx >= 0 && xMaxIdx < _numCols);
+    assert(yMaxIdx >= 0 && yMaxIdx < _numRows);
+
+    for(int xIdx = xMinIdx; xIdx <= xMaxIdx; ++ xIdx) {
+        for(int yIdx = yMinIdx; yIdx <= yMaxIdx; ++ yIdx) {
+            if (occupy(xIdx, yIdx, polygon)) {
+                _vPreGrid[layId][yIdx][xIdx].name = name;
+                if (name.find("-") == string::npos) {
+                    _vPreGrid[layId][yIdx][xIdx].type = PreGridType::OBSTACLE;
+                } else {
+                    _vPreGrid[layId][yIdx][xIdx].type = PreGridType::EMPTY;
+                }
+            }
+        }
+    }
+
+/*
     // fill the contour line
     for (size_t vtxId = 0; vtxId < polygon->numVtcs(); ++ vtxId) {
         double x1 = polygon->vtxX(vtxId);
@@ -202,7 +256,6 @@ void PreMgr::fillPolygonGrid(size_t layId, Polygon* polygon, string name) {
         fillLineGridXArch(layId, x1, y1, x2, y2, name);
     }
 
-/*
     // fill the inside of the polygon
     int minColIdx = floor(polygon->minX() / _gridWidth);
     int minRowIdx = floor(polygon->minY() / _gridWidth);
@@ -280,7 +333,7 @@ void PreMgr::fillPolygonGrid(size_t layId, Polygon* polygon, string name) {
                     // }
                 } else {
                     if (inside) {
-                        _vPreGrid[layId][rowIdx][colIdx].isOccupied = true;
+                        _vPreGrid[layId][rowIdx][colIdx].type = PreGridType::OBSTACLE;
                         _vPreGrid[layId][rowIdx][colIdx].name = name;
                     }
                     onBoundary = false;
@@ -289,7 +342,23 @@ void PreMgr::fillPolygonGrid(size_t layId, Polygon* polygon, string name) {
         }
     
     }
-*/
+// */
+}
+
+void PreMgr::initialize() {
+    for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
+        _vNumTPorts.push_back(_db.vNet(netId)->numTPorts());
+    }
+    for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
+        vector<BoundBox> temp;
+        _vTBoundBox.push_back(temp);
+        vector< vector< DBNode* > > netNode;
+        for (size_t tPortId = 0; tPortId < _vNumTPorts[netId]; ++tPortId) {
+            vector<DBNode*> tPortNode;
+            netNode.push_back(tPortNode);
+        }
+        _vTClusteredNode.push_back(netNode);
+    }
 }
 
 void PreMgr::nodeClustering() {
@@ -424,13 +493,49 @@ void PreMgr::assignPortPolygon() {
 }
 
 void PreMgr::clearPortGrid() {
+    auto occupy = [&] (int xId, int yId, Shape* shape) -> bool {
+        if (shape->enclose(xId*_gridWidth, yId*_gridWidth)) return true;
+        if (shape->enclose((xId+1)*_gridWidth, yId*_gridWidth)) return true;
+        if (shape->enclose(xId*_gridWidth, (yId+1)*_gridWidth)) return true;
+        if (shape->enclose((xId+1)*_gridWidth, (yId+1)*_gridWidth)) return true;
+        for (size_t vtxIdx = 0; vtxIdx < shape->numBPolyVtcs(); ++ vtxIdx) {
+            if (shape->bPolygonX(vtxIdx) >= xId*_gridWidth &&
+                shape->bPolygonX(vtxIdx) <= (xId+1)*_gridWidth &&
+                shape->bPolygonY(vtxIdx) >= yId*_gridWidth &&
+                shape->bPolygonY(vtxIdx) <= (yId+1)*_gridWidth) {
+                    return true;
+                }
+        }
+        return false;
+    };
     for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
         for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
             for (size_t portId = 0; portId < _db.vNet(netId)->numTPorts()+1; ++ portId) {
+                Polygon* polygon;
                 if (portId == 0) {
                     // _db.vNet(netId)->sourcePort()->boundPolygon()->clearGrid(layId);
+                    polygon = _db.vNet(netId)->sourcePort()->boundPolygon();
                 } else {
                     // _db.vNet(netId)->targetPort(portId-1)->boundPolygon()->clearGrid(layId);
+                    polygon = _db.vNet(netId)->targetPort(portId-1)->boundPolygon();
+                }
+                int xMinIdx = floor(polygon->minX() / _gridWidth);
+                int xMaxIdx = floor(polygon->maxX() / _gridWidth);
+                int yMinIdx = floor(polygon->minY() / _gridWidth);
+                int yMaxIdx = floor(polygon->maxY() / _gridWidth);
+                if (xMaxIdx == _numCols) xMaxIdx --;
+                if (yMaxIdx == _numRows) yMaxIdx --;
+                assert(xMinIdx >= 0 && xMinIdx < _numCols);
+                assert(yMinIdx >= 0 && yMinIdx < _numRows);
+                assert(xMaxIdx >= 0 && xMaxIdx < _numCols);
+                assert(yMaxIdx >= 0 && yMaxIdx < _numRows);
+
+                for(int xIdx = xMinIdx; xIdx <= xMaxIdx; ++ xIdx) {
+                    for(int yIdx = yMinIdx; yIdx <= yMaxIdx; ++ yIdx) {
+                        if (occupy(xIdx, yIdx, polygon)) {
+                            _vPreGrid[layId][yIdx][xIdx].type = PreGridType::EMPTY;
+                        }
+                    }
                 }
             }
         }
@@ -443,31 +548,40 @@ void PreMgr::spareRailSpace() {
     };
     cerr << "spareRailSpace..." << endl;
 
-    size_t fRegionId = 0;
-    FRegion* fRegion;
-    for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
-        for (size_t portId = 0; portId < _db.vNet(netId)->numTPorts()+1 ; ++ portId) {
-            int x0Idx;
-            int y0Idx;
-            if (portId == 0) {
-                x0Idx = floor(_db.vSNode(netId, 0)->node()->ctrX() / _gridWidth);
-                y0Idx = floor(_db.vSNode(netId, 0)->node()->ctrY() / _gridWidth);
-            } else {
-                x0Idx = floor(_vTClusteredNode[netId][portId-1][0]->node()->ctrX() / _gridWidth); 
-                y0Idx = floor(_vTClusteredNode[netId][portId-1][0]->node()->ctrY() / _gridWidth);
-            }
-            for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
-                cerr << "layId = " << layId << endl;
-                if (_vPreGrid[layId][y0Idx][x0Idx].type == PreGridType::OBSTACLE) {
-                    continue;
+    for (size_t layId = 0; layId < _db.numLayers(); ++ layId) {
+        // size_t layId = 1;
+        cerr << "layId = " << layId << endl;
+        int fRegionId = -1;
+        // FRegion* fRegion;
+        for (size_t netId = 0; netId < _db.numNets(); ++ netId) {
+            // size_t netId = 0;
+            for (size_t portId = 0; portId < _db.vNet(netId)->numTPorts()+1 ; ++ portId) {
+                // size_t portId = 0;
+                int x0Idx;
+                int y0Idx;
+                if (portId == 0) {
+                    x0Idx = floor(_db.vSNode(netId, 0)->node()->ctrX() / _gridWidth);
+                    y0Idx = floor(_db.vSNode(netId, 0)->node()->ctrY() / _gridWidth);
+                } else {
+                    x0Idx = floor(_vTClusteredNode[netId][portId-1][0]->node()->ctrX() / _gridWidth); 
+                    y0Idx = floor(_vTClusteredNode[netId][portId-1][0]->node()->ctrY() / _gridWidth);
                 }
+            
+                // if (_vPreGrid[layId][y0Idx][x0Idx].type == PreGridType::OBSTACLE) {
+                //     continue;
+                // }
                 assert(_vPreGrid[layId][y0Idx][x0Idx].type != PreGridType::OBSTACLE);
                 if (_vPreGrid[layId][y0Idx][x0Idx].type == PreGridType::EMPTY) {
                     fRegionId++;
                     // BFS
                     queue< pair<int, int> > q;
                     // _vPreGrid[layId][y0Idx][x0Idx].name = "RailSpace" + to_string(fRegionId);
+                    _vPreGrid[layId][y0Idx][x0Idx].type = PreGridType::FREGION;
+                    _vPreGrid[layId][y0Idx][x0Idx].fRegionId = fRegionId;
                     q.push(make_pair(y0Idx, x0Idx));
+                    int sRowIdx = -1;
+                    int sColIdx = -1;
+
                     while (!q.empty()) {
                         pair<int, int> p = q.front();
                         q.pop();
@@ -476,6 +590,7 @@ void PreMgr::spareRailSpace() {
                         // cerr << "yIdx = " << yIdx << ", xIdx = " << xIdx << endl;
                         assert(xIdx >= 0 && xIdx < _numCols && yIdx >= 0 && yIdx < _numRows);
                         // _vPreGrid[layId][yIdx][xIdx].name = "RailSpace";
+                        // explore upward
                         if (legal(yIdx-1, xIdx) && _vPreGrid[layId][yIdx-1][xIdx].type == PreGridType::EMPTY) {
                             // _vPreGrid[layId][yIdx-1][xIdx].name = "RailSpace";
                             _vPreGrid[layId][yIdx-1][xIdx].type = PreGridType::FREGION;
@@ -483,15 +598,35 @@ void PreMgr::spareRailSpace() {
                             q.push(make_pair(yIdx-1, xIdx));
                         } else if (legal(yIdx-1, xIdx) && _vPreGrid[layId][yIdx-1][xIdx].type == PreGridType::OBSTACLE) {
                             _vPreGrid[layId][yIdx-1][xIdx].type = PreGridType::CONTOUR;
+                            _vPreGrid[layId][yIdx-1][xIdx].fRegionId = fRegionId;
+                            sRowIdx = yIdx-1;
+                            sColIdx = xIdx;
+                        } else if (legal(yIdx-1, xIdx) && _vPreGrid[layId][yIdx-1][xIdx].type == PreGridType::CONTOUR) {
+                            _vPreGrid[layId][yIdx-1][xIdx].fRegionId = fRegionId;
+                            sRowIdx = yIdx-1;
+                            sColIdx = xIdx;
+                        } else if (!legal(yIdx-1, xIdx)) {
+                            _vPreGrid[layId][yIdx][xIdx].type = PreGridType::CONTOUR;
                         }
+                        // explore downward
                         if (legal(yIdx+1, xIdx) && _vPreGrid[layId][yIdx+1][xIdx].type == PreGridType::EMPTY) {
                             // _vPreGrid[layId][yIdx+1][xIdx].name = "RailSpace";
                             _vPreGrid[layId][yIdx+1][xIdx].type = PreGridType::FREGION;
                             _vPreGrid[layId][yIdx+1][xIdx].fRegionId = fRegionId;
                             q.push(make_pair(yIdx+1, xIdx));
-                        } else if (legal(yIdx-1, xIdx) && _vPreGrid[layId][yIdx-1][xIdx].type == PreGridType::OBSTACLE) {
+                        } else if (legal(yIdx+1, xIdx) && _vPreGrid[layId][yIdx+1][xIdx].type == PreGridType::OBSTACLE) {
                             _vPreGrid[layId][yIdx+1][xIdx].type = PreGridType::CONTOUR;
+                            _vPreGrid[layId][yIdx+1][xIdx].fRegionId = fRegionId;
+                            sRowIdx = yIdx+1;
+                            sColIdx = xIdx;
+                        } else if (legal(yIdx+1, xIdx) && _vPreGrid[layId][yIdx+1][xIdx].type == PreGridType::CONTOUR) {
+                            _vPreGrid[layId][yIdx+1][xIdx].fRegionId = fRegionId;
+                            sRowIdx = yIdx+1;
+                            sColIdx = xIdx;
+                        } else if (!legal(yIdx+1, xIdx)) {
+                            _vPreGrid[layId][yIdx][xIdx].type = PreGridType::CONTOUR;
                         }
+                        // explore leftward
                         if (legal(yIdx, xIdx-1) && _vPreGrid[layId][yIdx][xIdx-1].type == PreGridType::EMPTY) {
                             // _vPreGrid[layId][yIdx][xIdx-1].name = "RailSpace";
                             _vPreGrid[layId][yIdx][xIdx-1].type = PreGridType::FREGION;
@@ -499,26 +634,287 @@ void PreMgr::spareRailSpace() {
                             q.push(make_pair(yIdx, xIdx-1));
                         } else if (legal(yIdx, xIdx-1) && _vPreGrid[layId][yIdx][xIdx-1].type == PreGridType::OBSTACLE) {
                             _vPreGrid[layId][yIdx][xIdx-1].type = PreGridType::CONTOUR;
+                            _vPreGrid[layId][yIdx][xIdx-1].fRegionId = fRegionId;
+                            sRowIdx = yIdx;
+                            sColIdx = xIdx-1;
+                        } else if (legal(yIdx, xIdx-1) && _vPreGrid[layId][yIdx][xIdx-1].type == PreGridType::CONTOUR) {
+                            _vPreGrid[layId][yIdx][xIdx-1].fRegionId = fRegionId;
+                            sRowIdx = yIdx;
+                            sColIdx = xIdx-1;
+                        } else if (!legal(yIdx, xIdx-1)) {
+                            _vPreGrid[layId][yIdx][xIdx].type = PreGridType::CONTOUR;
                         }
-                        if (legal(yIdx, xIdx+1) && !_vPreGrid[layId][yIdx][xIdx+1].type == PreGridType::EMPTY) {
+                        // explore rightward
+                        if (legal(yIdx, xIdx+1) && _vPreGrid[layId][yIdx][xIdx+1].type == PreGridType::EMPTY) {
                             // _vPreGrid[layId][yIdx][xIdx+1].name = "RailSpace";
                             _vPreGrid[layId][yIdx][xIdx+1].type = PreGridType::FREGION;
                             _vPreGrid[layId][yIdx][xIdx+1].fRegionId = fRegionId;
                             q.push(make_pair(yIdx, xIdx+1));
                         } else if (legal(yIdx, xIdx+1) && _vPreGrid[layId][yIdx][xIdx+1].type == PreGridType::OBSTACLE) {
                             _vPreGrid[layId][yIdx][xIdx+1].type = PreGridType::CONTOUR;
+                            _vPreGrid[layId][yIdx][xIdx+1].fRegionId = fRegionId;
+                            sRowIdx = yIdx;
+                            sColIdx = xIdx+1;
+                        } else if (legal(yIdx, xIdx+1) && _vPreGrid[layId][yIdx][xIdx+1].type == PreGridType::CONTOUR) {
+                            _vPreGrid[layId][yIdx][xIdx+1].fRegionId = fRegionId;
+                            sRowIdx = yIdx;
+                            sColIdx = xIdx+1;
+                        } else if (!legal(yIdx, xIdx+1)) {
+                            _vPreGrid[layId][yIdx][xIdx].type = PreGridType::CONTOUR;
                         }
                     }
-                    fRegion = constructFRegion(netId, layId);
+                    cerr << "sRowIdx = " << sRowIdx << ", sColIdx = " << sColIdx << endl;
+                    // double x1 = sColIdx * _gridWidth;
+                    // double y1 = sRowIdx * _gridWidth;
+                    // double x2 = (sColIdx + 1) * _gridWidth;
+                    // double y2 = (sRowIdx + 1) * _gridWidth;
+                    // vector< pair<double, double> > vVtx;
+                    // vVtx.push_back(make_pair(x1, y1));
+                    // vVtx.push_back(make_pair(x2, y1));
+                    // vVtx.push_back(make_pair(x2, y2));
+                    // vVtx.push_back(make_pair(x1, y2));
+                    // Polygon* p = new Polygon(vVtx, _plot);
+                    // p->plot(SVGPlotColor::black, layId);
+
+                    FRegion* fRegion = constructFRegion(netId, layId, fRegionId, sRowIdx, sColIdx);
                     _db.vMetalLayer(layId)->addFRegion(fRegion);
+                    _db.setPortinFRegion(layId, fRegionId, netId, portId);
                 } else {
                     assert(_vPreGrid[layId][y0Idx][x0Idx].type == PreGridType::FREGION);
-                    fRegion = _db.vMetalLayer(layId)->vFRegion(_vPreGrid[layId][y0Idx][x0Idx].fRegionId);
+                    // fRegion = _db.vMetalLayer(layId)->vFRegion(_vPreGrid[layId][y0Idx][x0Idx].fRegionId);
+                    _db.setPortinFRegion(layId, _vPreGrid[layId][y0Idx][x0Idx].fRegionId, netId, portId);
                 }
-                _db.setPortinFRegion(fRegion, netId, portId);
+                
             }
         }
     }
+}
+
+FRegion* PreMgr::constructFRegion(size_t netId, size_t layId, size_t fRegionId, int sRowIdx, int sColIdx) {
+    // assume that the starting grid is not on a branch
+
+/*
+    // Depth First Search
+    auto legal = [&](int yIdx, int xIdx) -> bool {
+        return xIdx >= 0 && xIdx < _numCols && yIdx >= 0 && yIdx < _numRows;
+    };
+    stack< pair<int, int> > s;
+    s.push(make_pair(sRowIdx, sColIdx));
+    vector< pair<int, int> > vVtx;
+    while (!s.empty()) {
+        pair<int, int> p = s.top();
+        s.pop();
+        int yIdx = p.first;
+        int xIdx = p.second;
+        assert(_vPreGrid[layId][yIdx][xIdx].type == PreGridType::CONTOUR);
+        vVtx.push_back(make_pair((xIdx+0.5)*_gridWidth, (yIdx+0.5)*_gridWidth));
+        
+        // explore upward
+        if (legal(yIdx-1, xIdx) && _vPreGrid[layId][yIdx-1][xIdx].type == PreGridType::CONTOUR && _vPreGrid[layId][yIdx-1][xIdx].fRegionId == fRegionId) {
+            s.push(make_pair(yIdx-1, xIdx));
+        }
+        // explore downward
+        if (legal(yIdx+1, xIdx) && _vPreGrid[layId][yIdx+1][xIdx].type == PreGridType::CONTOUR && _vPreGrid[layId][yIdx+1][xIdx].fRegionId == fRegionId) {
+            s.push(make_pair(yIdx+1, xIdx));
+        }
+        // explore leftward
+        if (legal(yIdx, xIdx-1) && _vPreGrid[layId][yIdx][xIdx-1].type == PreGridType::CONTOUR && _vPreGrid[layId][yIdx][xIdx-1].fRegionId == fRegionId) {
+            s.push(make_pair(yIdx, xIdx-1));
+        }
+        // explore rightward
+        if (legal(yIdx, xIdx+1) && _vPreGrid[layId][yIdx][xIdx+1].type == PreGridType::CONTOUR && _vPreGrid[layId][yIdx][xIdx+1].fRegionId == fRegionId) {
+            s.push(make_pair(yIdx, xIdx+1));
+        }
+
+    }
+*/  
+    vector< pair<double, double> > vVtx;
+    vector< vector< bool > > visited(_numRows, vector<bool>(_numCols, false));
+    // int started = 0;
+
+    // auto legal = [&](int yIdx, int xIdx) -> bool {
+    //     return xIdx >= 0 && xIdx < _numCols && yIdx >= 0 && yIdx < _numRows;
+    // };
+
+    // std::function<bool(size_t, size_t, int, int)> DFS;
+    // DFS = [&](size_t layId, size_t fRegionId, int rowIdx, int colIdx) -> bool {
+    //     cerr << "rowIdx = " << rowIdx << ", colIdx = " << colIdx << endl;
+    //     visited[rowIdx][colIdx] = true;
+    //     if (rowIdx == sRowIdx && colIdx == sColIdx && started == 2) {
+    //         // if (started < 2) {
+    //         //     started ++;
+    //         // } else {
+    //         //     return true;
+    //         // }
+    //         return true;
+    //     } else {
+    //         bool cyclic = false;
+    //         // explore upward
+    //         // if (legal(rowIdx-1, colIdx) && 
+    //         //     _vPreGrid[layId][rowIdx-1][colIdx].type == PreGridType::CONTOUR && 
+    //         //     _vPreGrid[layId][rowIdx-1][colIdx].fRegionId == fRegionId){
+    //         //     if (visited[rowIdx-1][colIdx]) {
+    //         //         if (rowIdx-1 == sRowIdx && colIdx == sColIdx) {
+    //         //             if (started) {
+    //         //                 return true;
+    //         //             } else {
+    //         //                 started = true;
+    //         //             }
+    //         //         }
+    //         //     } else {
+    //         //         visited[rowIdx-1][colIdx] = true;
+    //         //         if (DFS(layId, fRegionId, rowIdx-1, colIdx)) {
+    //         //             vVtx.push_back(make_pair((colIdx+0.5)*_gridWidth, (rowIdx+0.5)*_gridWidth));
+    //         //             cyclic = true;
+    //         //         }
+    //         //     }
+    //         // }
+    //         // if (rowIdx == sRowIdx && colIdx == sColIdx) {
+    //         //     started ++;
+    //         // }
+    //         if (legal(rowIdx-1, colIdx) && 
+    //             _vPreGrid[layId][rowIdx-1][colIdx].type == PreGridType::CONTOUR && 
+    //             _vPreGrid[layId][rowIdx-1][colIdx].fRegionId == fRegionId && 
+    //             visited[rowIdx-1][colIdx] == false) {
+    //             if (DFS(layId, fRegionId, rowIdx-1, colIdx)) {
+    //                 vVtx.push_back(make_pair((colIdx+0.5)*_gridWidth, (rowIdx-0.5)*_gridWidth));
+    //                 cyclic = true;
+    //             }
+    //         } else if (rowIdx - 1 == sRowIdx && colIdx == sColIdx) {
+    //             if (started >= 1) {
+    //                 return true;
+    //             } else {
+    //                 started ++;
+    //             }
+    //         }
+    //         // explore downward
+    //         if (legal(rowIdx+1, colIdx) && 
+    //             _vPreGrid[layId][rowIdx+1][colIdx].type == PreGridType::CONTOUR && 
+    //             _vPreGrid[layId][rowIdx+1][colIdx].fRegionId == fRegionId && 
+    //             visited[rowIdx+1][colIdx] == false) {
+    //             if (DFS(layId, fRegionId, rowIdx+1, colIdx)) {
+    //                 vVtx.push_back(make_pair((colIdx+0.5)*_gridWidth, (rowIdx+1.5)*_gridWidth));
+    //                 cyclic = true;
+    //             }
+    //         } else if (rowIdx + 1 == sRowIdx && colIdx == sColIdx) {
+    //             if (started >= 1) {
+    //                 return true;
+    //             } else {
+    //                 started ++;
+    //             }
+    //         }
+    //         // explore leftward
+    //         if (legal(rowIdx, colIdx-1) && 
+    //             _vPreGrid[layId][rowIdx][colIdx-1].type == PreGridType::CONTOUR && 
+    //             _vPreGrid[layId][rowIdx][colIdx-1].fRegionId == fRegionId && 
+    //             visited[rowIdx][colIdx-1] == false) {
+    //             if (DFS(layId, fRegionId, rowIdx, colIdx-1)) {
+    //                 vVtx.push_back(make_pair((colIdx-0.5)*_gridWidth, (rowIdx+0.5)*_gridWidth));
+    //                 cyclic = true;
+    //             }
+    //         } else if (rowIdx == sRowIdx && colIdx - 1 == sColIdx) {
+    //             if (started >= 1) {
+    //                 return true;
+    //             } else {
+    //                 started ++;
+    //             }
+    //         }
+    //         // explore rightward
+    //         if (legal(rowIdx, colIdx+1) && 
+    //             _vPreGrid[layId][rowIdx][colIdx+1].type == PreGridType::CONTOUR && 
+    //             _vPreGrid[layId][rowIdx][colIdx+1].fRegionId == fRegionId && 
+    //             visited[rowIdx][colIdx+1] == false) {
+    //             if (DFS(layId, fRegionId, rowIdx, colIdx+1)) {
+    //                 vVtx.push_back(make_pair((colIdx+1.5)*_gridWidth, (rowIdx+0.5)*_gridWidth));
+    //                 cyclic = true;
+    //             }
+    //         } else if (rowIdx == sRowIdx && colIdx + 1 == sColIdx) {
+    //             if (started >= 1) {
+    //                 return true;
+    //             } else {
+    //                 started ++;
+    //             }
+    //         }
+    //         // explore upleft
+    //         if (legal(rowIdx-1, colIdx-1) && 
+    //             _vPreGrid[layId][rowIdx-1][colIdx-1].type == PreGridType::CONTOUR && 
+    //             _vPreGrid[layId][rowIdx-1][colIdx-1].fRegionId == fRegionId && 
+    //             visited[rowIdx-1][colIdx-1] == false) {
+    //             if (DFS(layId, fRegionId, rowIdx-1, colIdx-1)) {
+    //                 vVtx.push_back(make_pair((colIdx-0.5)*_gridWidth, (rowIdx-0.5)*_gridWidth));
+    //                 cyclic = true;
+    //             }
+    //         } else if (rowIdx - 1 == sRowIdx && colIdx - 1 == sColIdx) {
+    //             if (started >= 1) {
+    //                 return true;
+    //             } else {
+    //                 started ++;
+    //             }
+    //         }
+    //         // explore upright
+    //         if (legal(rowIdx-1, colIdx+1) && 
+    //             _vPreGrid[layId][rowIdx-1][colIdx+1].type == PreGridType::CONTOUR && 
+    //             _vPreGrid[layId][rowIdx-1][colIdx+1].fRegionId == fRegionId && 
+    //             visited[rowIdx-1][colIdx+1] == false) {
+    //             if (DFS(layId, fRegionId, rowIdx-1, colIdx+1)) {
+    //                 vVtx.push_back(make_pair((colIdx+1.5)*_gridWidth, (rowIdx-0.5)*_gridWidth));
+    //                 cyclic = true;
+    //             }
+    //         } else if (rowIdx - 1 == sRowIdx && colIdx + 1 == sColIdx) {
+    //             if (started >= 1) {
+    //                 return true;
+    //             } else {
+    //                 started ++;
+    //             }
+    //         }
+    //         // explore downleft
+    //         if (legal(rowIdx+1, colIdx-1) && 
+    //             _vPreGrid[layId][rowIdx+1][colIdx-1].type == PreGridType::CONTOUR && 
+    //             _vPreGrid[layId][rowIdx+1][colIdx-1].fRegionId == fRegionId && 
+    //             visited[rowIdx+1][colIdx-1] == false) {
+    //             if (DFS(layId, fRegionId, rowIdx+1, colIdx-1)) {
+    //                 vVtx.push_back(make_pair((colIdx-0.5)*_gridWidth, (rowIdx+1.5)*_gridWidth));
+    //                 cyclic = true;
+    //             }
+    //         } else if (rowIdx + 1 == sRowIdx && colIdx - 1 == sColIdx) {
+    //             if (started >= 1) {
+    //                 return true;
+    //             } else {
+    //                 started ++;
+    //             }
+    //         }
+    //         // explore downright
+    //         if (legal(rowIdx+1, colIdx+1) && 
+    //             _vPreGrid[layId][rowIdx+1][colIdx+1].type == PreGridType::CONTOUR && 
+    //             _vPreGrid[layId][rowIdx+1][colIdx+1].fRegionId == fRegionId && 
+    //             visited[rowIdx+1][colIdx+1] == false) {
+    //             if (DFS(layId, fRegionId, rowIdx+1, colIdx+1)) {
+    //                 vVtx.push_back(make_pair((colIdx+1.5)*_gridWidth, (rowIdx+1.5)*_gridWidth));
+    //                 cyclic = true;
+    //             }
+    //         } else if (rowIdx + 1 == sRowIdx && colIdx + 1 == sColIdx) {
+    //             if (started >= 1) {
+    //                 return true;
+    //             } else {
+    //                 started ++;
+    //             }
+    //         }
+    //         return cyclic;
+    //     }
+    //     return false;
+    // };
+
+    // Depth First Search
+    // bool connected = DFS(layId, fRegionId, sRowIdx, sColIdx);
+    bool connected = constructFRegionDFS(layId, fRegionId, sRowIdx, sColIdx, sRowIdx, sColIdx, vVtx, visited);
+    FRegion* fRegion = new FRegion();
+    if (connected) {
+        Polygon* polygon = new Polygon(vVtx, _plot);
+        polygon->plot(SVGPlotColor::gold, layId);
+        fRegion->setPolygon(polygon);
+    }
+    
+    return fRegion;
 }
 
 void PreMgr::kMeansClustering(size_t netId, vector<DBNode*> vNode, int numEpochs, int k) {
@@ -721,4 +1117,184 @@ Polygon* PreMgr::convexHull(vector<DBNode*> vNode) {
     }
     Polygon* boundPolygon = new Polygon(vVtx, _plot);
     return boundPolygon;
+}
+
+bool PreMgr::constructFRegionDFS(const size_t& layId, const size_t& fRegionId, const int& rowIdx, const int& colIdx, const int& sRowIdx, const int& sColIdx, vector< pair<double, double> >& vVtx, vector< vector< bool > >& visited) {
+    // static vector< pair<double, double> > vVtx;
+    // static vector< vector< bool > > visited(_numRows, vector<bool>(_numCols, false));
+    // static int started = 0;
+
+    auto legal = [&](int yIdx, int xIdx) -> bool {
+        return xIdx >= 0 && xIdx < _numCols && yIdx >= 0 && yIdx < _numRows;
+    };
+
+    // DFS = [&](size_t layId, size_t fRegionId, int rowIdx, int colIdx) -> bool {
+        cerr << "rowIdx = " << rowIdx << ", colIdx = " << colIdx << endl;
+        visited[rowIdx][colIdx] = true;
+        // bool cyclic = false;
+        // explore downward
+        if (legal(rowIdx-1, colIdx) && 
+            _vPreGrid[layId][rowIdx-1][colIdx].type == PreGridType::CONTOUR && 
+            _vPreGrid[layId][rowIdx-1][colIdx].fRegionId == fRegionId && 
+            visited[rowIdx-1][colIdx] == false) {
+            cerr << "downward" << endl;
+            if (constructFRegionDFS(layId, fRegionId, rowIdx-1, colIdx, sRowIdx, sColIdx, vVtx, visited)) {
+                vVtx.push_back(make_pair((colIdx+0.5)*_gridWidth, (rowIdx-0.5)*_gridWidth));
+                // cyclic = true;
+                return true;
+            }
+        } 
+        // else if (rowIdx - 1 == sRowIdx && colIdx == sColIdx) {
+        //     if (started >= 0) {
+        //         return true;
+        //     } else {
+        //         started ++;
+        //     }
+        // }
+        // explore leftward
+        if (legal(rowIdx, colIdx-1) && 
+            _vPreGrid[layId][rowIdx][colIdx-1].type == PreGridType::CONTOUR && 
+            _vPreGrid[layId][rowIdx][colIdx-1].fRegionId == fRegionId && 
+            visited[rowIdx][colIdx-1] == false) {
+            cerr << "leftward" << endl;
+            if (constructFRegionDFS(layId, fRegionId, rowIdx, colIdx-1, sRowIdx, sColIdx, vVtx, visited)) {
+                vVtx.push_back(make_pair((colIdx-0.5)*_gridWidth, (rowIdx+0.5)*_gridWidth));
+                // cyclic = true;
+                return true;
+            }
+        } 
+        // else if (rowIdx == sRowIdx && colIdx - 1 == sColIdx) {
+        //     if (started >= 0) {
+        //         return true;
+        //     } else {
+        //         started ++;
+        //     }
+        // }
+        // explore upward
+        if (legal(rowIdx+1, colIdx) && 
+            _vPreGrid[layId][rowIdx+1][colIdx].type == PreGridType::CONTOUR && 
+            _vPreGrid[layId][rowIdx+1][colIdx].fRegionId == fRegionId && 
+            visited[rowIdx+1][colIdx] == false) {
+            cerr << "upward" << endl;
+            if (constructFRegionDFS(layId, fRegionId, rowIdx+1, colIdx, sRowIdx, sColIdx, vVtx, visited)) {
+                vVtx.push_back(make_pair((colIdx+0.5)*_gridWidth, (rowIdx+1.5)*_gridWidth));
+                // cyclic = true;
+                return true;
+            }
+        } 
+        // else if (rowIdx + 1 == sRowIdx && colIdx == sColIdx) {
+        //     if (started >= 0) {
+        //         return true;
+        //     } else {
+        //         started ++;
+        //     }
+        // }
+        // explore rightward
+        if (legal(rowIdx, colIdx+1) && 
+            _vPreGrid[layId][rowIdx][colIdx+1].type == PreGridType::CONTOUR && 
+            _vPreGrid[layId][rowIdx][colIdx+1].fRegionId == fRegionId && 
+            visited[rowIdx][colIdx+1] == false) {
+            cerr << "rightward" << endl;
+            if (constructFRegionDFS(layId, fRegionId, rowIdx, colIdx+1, sRowIdx, sColIdx, vVtx, visited)) {
+                vVtx.push_back(make_pair((colIdx+1.5)*_gridWidth, (rowIdx+0.5)*_gridWidth));
+                // cyclic = true;
+                return true;
+            }
+        } 
+        // else if (rowIdx == sRowIdx && colIdx + 1 == sColIdx) {
+        //     if (started >= 0) {
+        //         return true;
+        //     } else {
+        //         started ++;
+        //     }
+        // }
+        // explore downleft
+        if (legal(rowIdx-1, colIdx-1) && 
+            _vPreGrid[layId][rowIdx-1][colIdx-1].type == PreGridType::CONTOUR && 
+            _vPreGrid[layId][rowIdx-1][colIdx-1].fRegionId == fRegionId && 
+            visited[rowIdx-1][colIdx-1] == false) {
+            cerr << "downleft" << endl;
+            if (constructFRegionDFS(layId, fRegionId, rowIdx-1, colIdx-1, sRowIdx, sColIdx, vVtx, visited)) {
+                vVtx.push_back(make_pair((colIdx-0.5)*_gridWidth, (rowIdx-0.5)*_gridWidth));
+                // cyclic = true;
+                return true;
+            }
+        } 
+        // else if (rowIdx - 1 == sRowIdx && colIdx - 1 == sColIdx) {
+        //     if (started >= 0) {
+        //         return true;
+        //     } else {
+        //         started ++;
+        //     }
+        // }
+        // explore downright
+        if (legal(rowIdx-1, colIdx+1) && 
+            _vPreGrid[layId][rowIdx-1][colIdx+1].type == PreGridType::CONTOUR && 
+            _vPreGrid[layId][rowIdx-1][colIdx+1].fRegionId == fRegionId && 
+            visited[rowIdx-1][colIdx+1] == false) {
+            cerr << "downright" << endl;
+            if (constructFRegionDFS(layId, fRegionId, rowIdx-1, colIdx+1, sRowIdx, sColIdx, vVtx, visited)) {
+                vVtx.push_back(make_pair((colIdx+1.5)*_gridWidth, (rowIdx-0.5)*_gridWidth));
+                // cyclic = true;
+                return true;
+            }
+        } 
+        // else if (rowIdx - 1 == sRowIdx && colIdx + 1 == sColIdx) {
+        //     if (started >= 0) {
+        //         return true;
+        //     } else {
+        //         started ++;
+        //     }
+        // }
+        // explore upright
+        if (legal(rowIdx+1, colIdx+1) && 
+            _vPreGrid[layId][rowIdx+1][colIdx+1].type == PreGridType::CONTOUR && 
+            _vPreGrid[layId][rowIdx+1][colIdx+1].fRegionId == fRegionId && 
+            visited[rowIdx+1][colIdx+1] == false) {
+            cerr << "upright" << endl;
+            if (constructFRegionDFS(layId, fRegionId, rowIdx+1, colIdx+1, sRowIdx, sColIdx, vVtx, visited)) {
+                vVtx.push_back(make_pair((colIdx+1.5)*_gridWidth, (rowIdx+1.5)*_gridWidth));
+                // cyclic = true;
+                return true;
+            }
+        } 
+        // else if (rowIdx + 1 == sRowIdx && colIdx + 1 == sColIdx) {
+        //     if (started >= 0) {
+        //         return true;
+        //     } else {
+        //         started ++;
+        //     }
+        // }
+        // explore upleft
+        if (legal(rowIdx+1, colIdx-1) && 
+            _vPreGrid[layId][rowIdx+1][colIdx-1].type == PreGridType::CONTOUR && 
+            _vPreGrid[layId][rowIdx+1][colIdx-1].fRegionId == fRegionId && 
+            visited[rowIdx+1][colIdx-1] == false) {
+            cerr << "upleft" << endl;
+            if (constructFRegionDFS(layId, fRegionId, rowIdx+1, colIdx-1, sRowIdx, sColIdx, vVtx, visited)) {
+                vVtx.push_back(make_pair((colIdx-0.5)*_gridWidth, (rowIdx+1.5)*_gridWidth));
+                // cyclic = true;
+                return true;
+            }
+        } 
+        // else if (rowIdx + 1 == sRowIdx && colIdx - 1 == sColIdx) {
+        //     if (started >= 0) {
+        //         return true;
+        //     } else {
+        //         started ++;
+        //     }
+        // }
+
+        if (rowIdx >= sRowIdx-1 && rowIdx <= sRowIdx+1 && colIdx >= sColIdx-1 && colIdx <= sColIdx+1) {
+            vVtx.push_back(make_pair((sColIdx+0.5)*_gridWidth, (sRowIdx+0.5)*_gridWidth));
+            return true;
+            // if (started >= 1) {
+            //     return true;
+            // } else {
+            //     started ++;
+            // }
+        }
+        // return cyclic;
+        return false;
+
 }

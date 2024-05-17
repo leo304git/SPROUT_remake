@@ -130,6 +130,7 @@ int main(int argc, char* argv[]){
     preMgr.clearPortGrid();
     preMgr.spareRailSpace();
     // preMgr.plotPreGrid();
+    preMgr.plotFRegion();
 /*    
     //time
     time_t start, end;

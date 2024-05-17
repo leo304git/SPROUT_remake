@@ -35,6 +35,7 @@ class SVGPlot {
         void drawCircle(double centerX, double centerY, double r, size_t colorId, size_t layId);
         void drawLine(double x1, double y1, double x2, double y2, size_t colorId, size_t layId, double width = 5);
         void drawPolygon(vector< pair<double, double> > vVtx, size_t colorId, size_t layId);
+        void drawText(double x, double y, string text, size_t colorId, size_t layId, double fontSize = 12);
 
         double gridWidth() const { return _gridWidth; }
         tuple<int, int, int> value2color(double value);

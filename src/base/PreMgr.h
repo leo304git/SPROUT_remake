@@ -61,12 +61,14 @@ class PreMgr {
         // functions for feasible region construction
         void clearPortGrid();
         void spareRailSpace();
-        FRegion* constructFRegion(size_t netId, size_t layId, size_t fRegionId, const int sRowIdx, const int sColIdx);
+        FRegion* constructFRegion(size_t netId, size_t layId, size_t portId, size_t fRegionId, const vector< pair<int, int> >& vContour);
+        void plotFRegion();
         
     private:
         void kMeansClustering(size_t netId, vector<DBNode*> vNode, int numEpochs, int k);
         Polygon* convexHull(vector<DBNode*> vNode);
         bool constructFRegionDFS(const size_t& layId, const size_t& fRegionId, const int& rowIdx, const int& colIdx, const int& sRowIdx, const int& sColIdx, vector< pair<double, double> >& vVtx, vector< vector< bool > >& visited);
+        // bool detectLoop(const size_t& layId, const size_t& fRegionId, const int& rowIdx, const int& colIdx, const int& loopIdx, vector<vector< pair<double, double> > >& vVtx, vector< vector< char > >& state);
         DB& _db;
         SVGPlot& _plot;
         vector< size_t > _vNumTPorts;       // index = [netId]

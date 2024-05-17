@@ -51,6 +51,7 @@ class MetalLayer : public Layer {
 
         size_t numObstacles() const       { return _vObstacle.size(); }
         Obstacle* vObstacle(size_t obsId) { return _vObstacle[obsId]; }
+        size_t numFRegions() const        { return _vFRegion.size(); }
         FRegion* vFRegion(size_t fRegionId) { return _vFRegion[fRegionId]; }
         double conductivity() const {return _conductivity; }
 

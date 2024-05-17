@@ -45,6 +45,10 @@ void SVGPlot::drawPolygon(vector< pair<double, double> > vVtx, size_t colorId, s
     _fout << "\" style=\"fill:" << _vColor[colorId] << ";stroke:gray;stroke-width:0;fill-opacity:0.7\" />" << endl;
 }
 
+void SVGPlot::drawText(double x, double y, string text, size_t colorId, size_t layId, double fontSize) {
+    _fout << "  <text fill=\"" << _vColor[colorId] << "\" font-size=\"" << fontSize << "\" font-family=\"Verdana\" x=\"" << (x + _boardWidth*layId)*_plotRatio << "\" y=\"" << (_boardHeight-y)*_plotRatio << "\">" << text << "</text>" << endl;
+}
+
 tuple<int, int, int> SVGPlot::value2color(double value) {
     double f = (value - _lbColorValue) / (_ubColorValue - _lbColorValue);
     // cerr << "f = " << f << endl;

@@ -33,7 +33,7 @@ void SVGPlot::drawCircle(double centerX, double centerY, double r, size_t colorI
 
 void SVGPlot::drawLine(double x1, double y1, double x2, double y2, size_t colorId, size_t layId, double width) {
     _fout << "  <line x1=\"" << (x1 + _boardWidth*layId)*_plotRatio << "\" y1=\"" << (_boardHeight-y1)*_plotRatio << "\" x2=\"" << (x2 + _boardWidth*layId)*_plotRatio << "\" y2=\"" << (_boardHeight-y2)*_plotRatio;
-    _fout << "\" style=\"stroke:" << _vColor[colorId] << ";stroke-width:" << width << "\" />\n";
+    _fout << "\" style=\"stroke:" << _vColor[colorId] << ";stroke-width:" << width*_plotRatio << "\" />\n";
 }
 
 void SVGPlot::drawPolygon(vector< pair<double, double> > vVtx, size_t colorId, size_t layId) {
